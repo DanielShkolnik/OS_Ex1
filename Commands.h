@@ -160,6 +160,13 @@ class CopyCommand : public BuiltInCommand {
   void execute() override;
 };
 
+class ChangePromptCommand : public BuiltInCommand {
+public:
+    ChangePromptCommand(const char* cmd_line);
+    virtual ~ChangePromptCommand() {}
+    void execute() override;
+};
+
 // TODO: add more classes if needed 
 // maybe chprompt , timeout ?
 
