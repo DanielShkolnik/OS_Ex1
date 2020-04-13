@@ -7,7 +7,7 @@
 
 using namespace std;
 
-extern char* promptName;
+extern string promptName;
 
 int main(int argc, char* argv[]) {
     if(signal(SIGTSTP , ctrlZHandler)==SIG_ERR) {
