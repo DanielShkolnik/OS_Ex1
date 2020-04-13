@@ -115,6 +115,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   if(cmd_s.find("chprompt")==0) {
     return new ChangePromptCommand(cmd_line);
   }
+
   else if (cmd_s.find("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
