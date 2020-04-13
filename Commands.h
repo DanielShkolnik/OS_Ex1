@@ -168,7 +168,7 @@ public:
     virtual ~ChangePromptCommand() {}
     void execute() override{
         char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);;
-        int argNum=_parseCommandLine(cmd_line,args);
+        int argNum=_parseCommandLine(this->cmd_line,args);
         if (strcmp(args[0],"chprompt")==0 && argNum > 1 ){
             promptName=args[1];
             promptName+="> ";
