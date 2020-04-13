@@ -7,9 +7,14 @@
 #include <iomanip>
 #include "Commands.h"
 
-string promptName="smash> ";
-
 using namespace std;
+
+char* promptNameDefault="smash> ";
+
+char* promptName=(char*)malloc(promptNameDefault.length()+1);;
+strcpy(*promptName,promptNameDefault);
+
+
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
@@ -99,7 +104,7 @@ SmallShell::~SmallShell() {
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
-  string cmd_s = string(cmd_line);
+  /*string cmd_s = string(cmd_line);
   if (cmd_s.find("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
@@ -134,6 +139,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   return nullptr;
 }
 
+/*
 vector<string> split(const string &s, char delim) {
   vector<string> result;
   stringstream ss (s);
@@ -145,7 +151,7 @@ vector<string> split(const string &s, char delim) {
 
   return result;
 }
-
+*/
 
 void SmallShell::executeCommand(const char *cmd_line) {
   // TODO: Add your implementation here
@@ -153,9 +159,17 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
-  const string str(cmd_line);
+  char** args=(char**)malloc(sizeof(char)*200);;
+  _parseCommandLine(cmd_line,args);
+  if (strcmp(args[0],"chprompt")==0){
+    strcpy(promptName,args[0]);
+  }
+
+
+  /*const string str(cmd_line);
   vector<string> args = split(str, ' ');
   if (str.compare(0,9,"chprompt ") == 0){
     promptName=args[0]+"> ";
   }
+  */
 }

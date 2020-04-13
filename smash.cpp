@@ -5,7 +5,9 @@
 #include "Commands.h"
 #include "signals.h"
 
-extern string promptName;
+using namespace std;
+
+extern char* promptName;
 
 int main(int argc, char* argv[]) {
     if(signal(SIGTSTP , ctrlZHandler)==SIG_ERR) {
