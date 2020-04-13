@@ -8,9 +8,9 @@
 #define HISTORY_MAX_RECORDS (50)
 
 class Command {
-// TODO: Add your data members
+const char* cmd_line;
  public:
-  Command(const char* cmd_line);
+  Command(const char* cmd_line){this->cmd_line = cmd_line;};
   virtual ~Command();
   virtual void execute() = 0;
   //virtual void prepare();
