@@ -66,14 +66,10 @@ class ChangeDirCommand : public BuiltInCommand {
 
 class GetCurrDirCommand : public BuiltInCommand {
  public:
-  GetCurrDirCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
-  virtual ~GetCurrDirCommand()= default;
-  void execute() override{
-      char* path=get_current_dir_name();
-      if (path!= nullptr) std::cout << path << endl;
-  }
+  GetCurrDirCommand(const char* cmd_line);
+  virtual ~GetCurrDirCommand() {}
+  void execute() override;
 };
-
 
 class ShowPidCommand : public BuiltInCommand {
  public:
