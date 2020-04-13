@@ -9,7 +9,8 @@
 
 using namespace std;
 
-string promptName="smash> ";
+string defaultPromptName="smash> ";
+string promptName=defaultPromptName;
 
 
 const std::string WHITESPACE = " \n\r\t\f\v";
@@ -100,12 +101,13 @@ SmallShell::~SmallShell() {
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
-  /*string cmd_s = string(cmd_line);
-  if (cmd_s.find("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
-  }
-  else if(cmd_s.find("chprompmt")==0) {
+string cmd_s = string(cmd_line);
+   if(cmd_s.find("chprompmt")==0) {
     return new ChangePromptCommand(cmd_line);
+  }
+  /*
+  else if (cmd_s.find("pwd") == 0) {
+    return new GetCurrDirCommand(cmd_line);
   }
   else if(cmd_s.find("showpid")==0) {
     return new ShowPidCommand(cmd_line);
@@ -138,14 +140,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 
 void SmallShell::executeCommand(const char *cmd_line) {
   // TODO: Add your implementation here
-  // for example:
+   Command* cmd = CreateCommand(cmd_line);
+   cmd->execute();
+
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
-  char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);;
-  _parseCommandLine(cmd_line,args);
-  if (strcmp(args[0],"chprompt")==0){
-    promptName=args[1];
-    promptName+="> ";
   }
-}
