@@ -7,7 +7,7 @@
 #include <iomanip>
 #include "Commands.h"
 
-extern string promptName="smash> ";
+string promptName="smash> ";
 
 using namespace std;
 
