@@ -97,24 +97,41 @@ SmallShell::~SmallShell() {
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
-/*
   string cmd_s = string(cmd_line);
   if (cmd_s.find("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
-  else if ...
-  .....
+  else if(cmd_s.find("chprompmt")==0) {
+    return new ChangePromptCommand(cmd_line);
+  }
+  else if(cmd_s.find("showpid")==0) {
+    return new ShowPidCommand(cmd_line);
+  }
+  else if(cmd_s.find("cd")==0) {
+    return new ChangeDirCommand(cmd_line);
+  }
+  else if(cmd_s.find("jobs")==0) {
+    return new JobsCommand(cmd_line);
+  }
+  else if(cmd_s.find("kill")==0) {
+    return new KillCommand(cmd_line);
+  }
+  else if(cmd_s.find("fg")==0) {
+    return new ForegroundCommand(cmd_line);
+  }
+  else if(cmd_s.find("bg")==0) {
+    return new BackgroundCommand(cmd_line);
+  }
+  else if(cmd_s.find("quit")==0) {
+    return new QuitCommand(cmd_line);
+  }
   else {
     return new ExternalCommand(cmd_line);
   }
-  */
-  return nullptr;
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
   // TODO: Add your implementation here
-  // for example:
-  // Command* cmd = CreateCommand(cmd_line);
-  // cmd->execute();
-  // Please note that you must fork smash process for some commands (e.g., external commands....)
+     Command* cmd = CreateCommand(cmd_line);
+     cmd->execute();
 }
