@@ -119,10 +119,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new GetCurrDirCommand(cmd_line);
   }
 
-  /*
   else if(cmd_s.find("showpid")==0) {
     return new ShowPidCommand(cmd_line);
   }
+
+
   /*
   else if (cmd_s.find("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
