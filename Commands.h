@@ -9,6 +9,7 @@
 using namespace std;
 extern string defaultPromptName;
 extern string promptName;
+extern bool firstCD;
 
 int _parseCommandLine(const char* cmd_line, char** args);
 
@@ -58,9 +59,41 @@ class RedirectionCommand : public Command {
 
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
-  virtual ~ChangeDirCommand() {}
-  void execute() override;
+private:
+    char** plastPwd;
+public:
+  ChangeDirCommand(const char* cmd_line, char** plastPwd):BuiltInCommand(cmd_line),plastPwd(plastPwd){};
+  virtual ~ChangeDirCommand() {
+      free(*plastPwd);
+      free(plastPwd);
+  }
+  void execute() override{
+      char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+      int argNum=_parseCommandLine(this->cmd_line,args);
+      if(argNum>1){
+          std::cout << "smash error: cd: too many arguments" << endl;
+          return;
+      }
+      if(strcmp(args[1],"-")==0){
+          if(firstCD) std::cout << "smash error: cd: OLDPWD not set" << endl;
+          else int chdirError=chdir(*plastPwd);
+          //Error Handling
+          return;
+      }
+      if(!firstCD) {
+          char* oldPath=get_current_dir_name();
+          free(*plastPwd);
+          *plastPwd=(char*)malloc(strlen(oldPath)+1);
+          strcpy(*plastPwd,oldPath);
+      }
+      int chdirError=chdir(args[1]);
+      //Error Handling
+
+
+      if(firstCD) firstCD=false;
+      for(int i=0; i<=argNum; i++) free(args[i]);
+      free(args);
+  }
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
@@ -189,6 +222,8 @@ public:
         else if(argNum == 1){
                 promptName=defaultPromptName;
         }
+        for(int i=0; i<=argNum; i++) free(args[i]);
+        free(args);
     }
 };
 

@@ -10,6 +10,7 @@
 using namespace std;
 string defaultPromptName="smash> ";
 string promptName=defaultPromptName;
+bool firstCD=true;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
@@ -124,14 +125,13 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new ShowPidCommand(cmd_line);
   }
 
+  else if(cmd_s.find("cd")==0) {
+    char** plastPwd=(char**)malloc(sizeof(char*));
+    *plastPwd= nullptr;
+    return new ChangeDirCommand(cmd_line,plastPwd);
+  }
 
   /*
-  else if (cmd_s.find("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
-  }
-  else if(cmd_s.find("cd")==0) {
-    return new ChangeDirCommand(cmd_line);
-  }
   else if(cmd_s.find("jobs")==0) {
     return new JobsCommand(cmd_line);
   }
