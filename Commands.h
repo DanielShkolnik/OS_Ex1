@@ -1,6 +1,9 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
-
+#include <iostream>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
 #include <vector>
 
 
@@ -74,9 +77,11 @@ class GetCurrDirCommand : public BuiltInCommand {
 
 class ShowPidCommand : public BuiltInCommand {
  public:
-  ShowPidCommand(const char* cmd_line);
-  virtual ~ShowPidCommand() {}
-  void execute() override;
+  ShowPidCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
+  virtual ~ShowPidCommand() = default;
+  void execute() override{
+      std::cout << "smash pid is: " << getpid() << endl;
+  };
 };
 
 class JobsList;

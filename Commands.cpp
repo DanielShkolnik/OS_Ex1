@@ -115,12 +115,13 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   if(cmd_s.find("chprompt")==0) {
     return new ChangePromptCommand(cmd_line);
   }
+
+  else if(cmd_s.find("showpid")==0) {
+    return new ShowPidCommand(cmd_line);
+  }
   /*
   else if (cmd_s.find("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
-  }
-  else if(cmd_s.find("showpid")==0) {
-    return new ShowPidCommand(cmd_line);
   }
   else if(cmd_s.find("cd")==0) {
     return new ChangeDirCommand(cmd_line);
