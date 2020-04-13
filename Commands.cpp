@@ -110,8 +110,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new ExternalCommand(cmd_line);
   }
   */
+
   string cmd_s = string(cmd_line);
-  if(cmd_s.find("chprompmt")==0) {
+  if(cmd_s.find("chprompt")==0) {
     return new ChangePromptCommand(cmd_line);
   }
   /*
@@ -150,7 +151,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 void SmallShell::executeCommand(const char *cmd_line) {
   // TODO: Add your implementation here
    Command* cmd = CreateCommand(cmd_line);
-   cmd->execute();
+   if(cmd!= nullptr) cmd->execute();
 
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();

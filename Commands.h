@@ -16,8 +16,8 @@ int _parseCommandLine(const char* cmd_line, char** args);
 
 
 class Command {
- protected://***********************************************************Was Private
- const char* cmd_line;
+ protected:
+    const char* cmd_line;
  public:
   Command(const char* cmd_line){this->cmd_line = cmd_line;};
   virtual ~Command()= default;
