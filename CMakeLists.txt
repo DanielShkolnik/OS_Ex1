@@ -3,4 +3,4 @@ project(Ex1)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(Ex1 main.cpp)
+add_executable(Ex1 main.cpp Commands.cpp Commands.h smash.cpp signals.cpp signals.h)

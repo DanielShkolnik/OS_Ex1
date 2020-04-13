@@ -3,15 +3,24 @@
 
 #include <vector>
 
+
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define HISTORY_MAX_RECORDS (50)
 
+using namespace std;
+extern string defaultPromptName;
+extern string promptName;
+
+int _parseCommandLine(const char* cmd_line, char** args);
+
+
 class Command {
-const char* cmd_line;
+ protected://***********************************************************Was Private
+ const char* cmd_line;
  public:
   Command(const char* cmd_line){this->cmd_line = cmd_line;};
-  virtual ~Command();
+  virtual ~Command()= default;
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
@@ -20,8 +29,8 @@ const char* cmd_line;
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line);
-  virtual ~BuiltInCommand() {}
+  BuiltInCommand(const char* cmd_line):Command(cmd_line){};
+  virtual ~BuiltInCommand() = default;
 };
 
 class ExternalCommand : public Command {
@@ -164,16 +173,16 @@ class CopyCommand : public BuiltInCommand {
 
 class ChangePromptCommand : public BuiltInCommand {
 public:
-    ChangePromptCommand(const char* cmd_line);
-    virtual ~ChangePromptCommand() {}
+    ChangePromptCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
+    virtual ~ChangePromptCommand()= default;
     void execute() override{
-        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);;
+        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
         int argNum=_parseCommandLine(this->cmd_line,args);
-        if (strcmp(args[0],"chprompt")==0 && argNum > 1 ){
+        if (argNum > 1 ){
             promptName=args[1];
             promptName+="> ";
         }
-        else if( argNum == 1){
+        else if(argNum == 1){
                 promptName=defaultPromptName;
         }
     }

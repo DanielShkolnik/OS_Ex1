@@ -8,10 +8,8 @@
 #include "Commands.h"
 
 using namespace std;
-
 string defaultPromptName="smash> ";
 string promptName=defaultPromptName;
-
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
@@ -100,9 +98,20 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
-	// For example:
-string cmd_s = string(cmd_line);
-   if(cmd_s.find("chprompmt")==0) {
+  // For example:
+/*
+  string cmd_s = string(cmd_line);
+  if (cmd_s.find("pwd") == 0) {
+    return new GetCurrDirCommand(cmd_line);
+  }
+  else if ...
+  .....
+  else {
+    return new ExternalCommand(cmd_line);
+  }
+  */
+  string cmd_s = string(cmd_line);
+  if(cmd_s.find("chprompmt")==0) {
     return new ChangePromptCommand(cmd_line);
   }
   /*
