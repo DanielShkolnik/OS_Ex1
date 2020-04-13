@@ -148,7 +148,7 @@ class BackgroundCommand : public BuiltInCommand {
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~BackgroundCommand() {}
-  void execute() override;
+  void execute() override {};
 };
 
 
@@ -157,14 +157,18 @@ class CopyCommand : public BuiltInCommand {
  public:
   CopyCommand(const char* cmd_line);
   virtual ~CopyCommand() {}
-  void execute() override;
+  void execute() override{
+
+  };
 };
 
 class ChangePromptCommand : public BuiltInCommand {
 public:
     ChangePromptCommand(const char* cmd_line);
     virtual ~ChangePromptCommand() {}
-    void execute() override;
+    void execute() override{
+
+    };
 };
 
 // TODO: add more classes if needed 

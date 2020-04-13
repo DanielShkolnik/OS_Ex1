@@ -7,7 +7,7 @@
 #include <iomanip>
 #include "Commands.h"
 
-extern string promptName="smash> ";
+string promptName="smash> ";
 
 using namespace std;
 
@@ -134,28 +134,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   return nullptr;
 }
 
-vector<string> split(const string &s, char delim) {
-  vector<string> result;
-  stringstream ss (s);
-  string item;
-
-  while (getline (ss, item, delim)) {
-    result.push_back (item);
-  }
-
-  return result;
-}
 
 
 void SmallShell::executeCommand(const char *cmd_line) {
   // TODO: Add your implementation here
-  // for example:
-  // Command* cmd = CreateCommand(cmd_line);
-  // cmd->execute();
-  // Please note that you must fork smash process for some commands (e.g., external commands....)
-  const string str(cmd_line);
-  vector<string> args = split(str, ' ');
-  if (str.compare(0,9,"chprompt ") == 0){
-    promptName=args[0]+"> ";
-  }
+
+  Command* cmd = CreateCommand(cmd_line);
+  cmd->execute();
 }
