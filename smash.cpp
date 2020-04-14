@@ -20,11 +20,15 @@ int main(int argc, char* argv[]) {
     //TODO: setup sig alarm handler
 
     SmallShell& smash = SmallShell::getInstance();
+    char** plastPwd = (char **) malloc(sizeof(char *));
+    *plastPwd = nullptr;
     while(true) {
         std::cout << promptName;
         std::string cmd_line;
         std::getline(std::cin, cmd_line);
-        smash.executeCommand(cmd_line.c_str());
+        smash.executeCommand(cmd_line.c_str(),plastPwd);
     }
+    free(*plastPwd);
+    free(plastPwd);
     return 0;
 }

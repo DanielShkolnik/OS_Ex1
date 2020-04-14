@@ -1,6 +1,8 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
 
+#include <unistd.h>
+#include <string.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -62,25 +64,20 @@ class ChangeDirCommand : public BuiltInCommand {
 private:
     char **plastPwd;
 public:
-    ChangeDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
-        plastPwd = (char **) malloc(sizeof(char *));
-        *plastPwd = nullptr;
-    };
-
-  virtual ~ChangeDirCommand() {
-      free(*plastPwd);
-      free(plastPwd);
-  }
+    ChangeDirCommand(const char *cmd_line,char** plastPwd) : BuiltInCommand(cmd_line),plastPwd(plastPwd){};
+  virtual ~ChangeDirCommand() = default;
   void execute() override{
       char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
       int argNum=_parseCommandLine(this->cmd_line,args,false);
       if(argNum>2){
-          perror("smash error: cd: too many arguments");
+          std::cout << "smash error: cd: too many arguments" << endl;
           return;
       }
       if(strcmp(args[1],"-")==0){
-          if(firstCD) perror("smash error: cd: OLDPWD not set");
-          else int chdirError=chdir(*plastPwd);
+          if(firstCD) std::cout << "smash error: cd: OLDPWD not set" << endl;
+          else {
+              int chdirError=chdir(*plastPwd);
+          }
           //Error Handling
           return;
       }
@@ -243,7 +240,7 @@ class SmallShell {
   // TODO: Add your data members
   SmallShell();
  public:
-  Command *CreateCommand(const char* cmd_line);
+  Command *CreateCommand(const char* cmd_line, char** plastPwd);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
   static SmallShell& getInstance() // make SmallShell singleton
@@ -253,7 +250,7 @@ class SmallShell {
     return instance;
   }
   ~SmallShell();
-  void executeCommand(const char* cmd_line);
+  void executeCommand(const char* cmd_line, char** plastPwd);
   // TODO: add extra methods as needed
 };
 

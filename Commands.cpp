@@ -12,6 +12,7 @@ string defaultPromptName="smash> ";
 string promptName=defaultPromptName;
 bool firstCD=true;
 
+
 const std::string WHITESPACE = " \n\r\t\f\v";
 const std::string BACKSLASH = "\\";
 
@@ -33,15 +34,17 @@ const std::string BACKSLASH = "\\";
 
 string _ltrim(const std::string& s, bool backSlash)
 {
-  if(backSlash) size_t start = s.find_first_not_of(BACKSLASH);
-  else size_t start = s.find_first_not_of(WHITESPACE);
+  size_t start;
+  if(backSlash) start = s.find_first_not_of(BACKSLASH);
+  else start = s.find_first_not_of(WHITESPACE);
   return (start == std::string::npos) ? "" : s.substr(start);
 }
 
 string _rtrim(const std::string& s, bool backSlash)
 {
-  if(backSlash) size_t end = s.find_last_not_of(BACKSLASH);
-  else size_t end = s.find_last_not_of(WHITESPACE);
+  size_t end;
+  if(backSlash) end = s.find_last_not_of(BACKSLASH);
+  else end = s.find_last_not_of(WHITESPACE);
   return (end == std::string::npos) ? "" : s.substr(0, end + 1);
 }
 
@@ -101,7 +104,7 @@ SmallShell::~SmallShell() {
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
-Command * SmallShell::CreateCommand(const char* cmd_line) {
+Command * SmallShell::CreateCommand(const char* cmd_line, char** plastPwd) {
   // For example:
 /*
   string cmd_s = string(cmd_line);
@@ -129,7 +132,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   }
 
   else if(cmd_s.find("cd")==0) {
-    return new ChangeDirCommand(cmd_line);
+    return new ChangeDirCommand(cmd_line,plastPwd);
   }
 
   /*
@@ -156,9 +159,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 }
 
 
-void SmallShell::executeCommand(const char *cmd_line) {
+void SmallShell::executeCommand(const char *cmd_line,char** plastPwd) {
   // TODO: Add your implementation here
-   Command* cmd = CreateCommand(cmd_line);
+   Command* cmd = CreateCommand(cmd_line,plastPwd);
    if(cmd!= nullptr) cmd->execute();
 
   // Command* cmd = CreateCommand(cmd_line);
