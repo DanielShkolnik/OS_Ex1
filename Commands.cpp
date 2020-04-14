@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+#include <fstream>
 
 using namespace std;
 string defaultPromptName="smash> ";
@@ -151,10 +152,12 @@ Command * SmallShell::CreateCommand(const char* cmd_line, char** plastPwd) {
   else if(cmd_s.find("quit")==0) {
     return new QuitCommand(cmd_line);
   }
+  */
+
   else {
     return new ExternalCommand(cmd_line);
   }
-  */
+
   return nullptr;
 }
 

@@ -3,6 +3,7 @@
 
 #include <unistd.h>
 #include <string.h>
+#include <fstream>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -14,6 +15,8 @@ extern string promptName;
 extern bool firstCD;
 
 int _parseCommandLine(const char* cmd_line, char** args, bool backSlash);
+bool _isBackgroundComamnd(const char* cmd_line);
+void _removeBackgroundSign(char* cmd_line);
 
 
 class Command {
@@ -36,9 +39,28 @@ class BuiltInCommand : public Command {
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line);
-  virtual ~ExternalCommand() {}
-  void execute() override;
+  ExternalCommand(const char* cmd_line):Command(cmd_line){};
+  virtual ~ExternalCommand() = default;
+  void execute() override{
+      char cmd[COMMAND_ARGS_MAX_LENGTH];
+      strcpy(cmd,this->cmd_line);
+      if(_isBackgroundComamnd(this->cmd_line)){
+          //Add to Job list
+          _removeBackgroundSign(cmd);
+      }
+      pid_t pid=fork();
+      if(pid==-1) perror("smash error: fork failed");
+      //Child:
+      if(pid==0){
+          char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
+          execv(argv[0], argv);
+
+      }
+      //Parent:
+      else{
+          wait(NULL);
+      }
+  }
 };
 
 class PipeCommand : public Command {
@@ -77,8 +99,8 @@ public:
           if(firstCD) std::cout << "smash error: cd: OLDPWD not set" << endl;
           else {
               int chdirError=chdir(*plastPwd);
+              if(chdirError==-1) perror("smash error: chdir failed");
           }
-          //Error Handling
           return;
       }
       /*
@@ -89,11 +111,12 @@ public:
       }
        */
       char* oldPath=get_current_dir_name();
+      if (oldPath== nullptr) perror("smash error: get_current_dir_name failed");
       if(!firstCD) free(*plastPwd);
       *plastPwd=(char*)malloc(strlen(oldPath)+1);
       strcpy(*plastPwd,oldPath);
       int chdirError=chdir(args[1]);
-      //Error Handling
+      if(chdirError==-1) perror("smash error: chdir failed");
 
       if(firstCD) firstCD=false;
       for(int i=0; i<=argNum; i++) free(args[i]);
@@ -107,7 +130,8 @@ class GetCurrDirCommand : public BuiltInCommand {
   virtual ~GetCurrDirCommand()= default;
   void execute() override{
       char* path=get_current_dir_name();
-      if (path!= nullptr) std::cout << path << endl;
+      if (path== nullptr) perror("smash error: get_current_dir_name failed");
+      else std::cout << path << endl;
   }
 };
 
