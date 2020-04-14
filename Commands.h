@@ -11,7 +11,7 @@ extern string defaultPromptName;
 extern string promptName;
 extern bool firstCD;
 
-int _parseCommandLine(const char* cmd_line, char** args);
+int _parseCommandLine(const char* cmd_line, char** args, bool backSlash);
 
 
 class Command {
@@ -60,35 +60,43 @@ class RedirectionCommand : public Command {
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
 private:
-    char** plastPwd;
+    char **plastPwd;
 public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd):BuiltInCommand(cmd_line),plastPwd(plastPwd){};
+    ChangeDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
+        plastPwd = (char **) malloc(sizeof(char *));
+        *plastPwd = nullptr;
+    };
+
   virtual ~ChangeDirCommand() {
       free(*plastPwd);
       free(plastPwd);
   }
   void execute() override{
       char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
-      int argNum=_parseCommandLine(this->cmd_line,args);
-      if(argNum>1){
-          std::cout << "smash error: cd: too many arguments" << endl;
+      int argNum=_parseCommandLine(this->cmd_line,args,false);
+      if(argNum>2){
+          perror("smash error: cd: too many arguments");
           return;
       }
       if(strcmp(args[1],"-")==0){
-          if(firstCD) std::cout << "smash error: cd: OLDPWD not set" << endl;
+          if(firstCD) perror("smash error: cd: OLDPWD not set");
           else int chdirError=chdir(*plastPwd);
           //Error Handling
           return;
       }
-      if(!firstCD) {
-          char* oldPath=get_current_dir_name();
-          free(*plastPwd);
-          *plastPwd=(char*)malloc(strlen(oldPath)+1);
-          strcpy(*plastPwd,oldPath);
+      /*
+      if(strcmp(args[1],"..")==0){
+          char** argsPath=(char**)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
+          int argPathNum=_parseCommandLine(args[1],argsPath,true);
+
       }
+       */
+      char* oldPath=get_current_dir_name();
+      if(!firstCD) free(*plastPwd);
+      *plastPwd=(char*)malloc(strlen(oldPath)+1);
+      strcpy(*plastPwd,oldPath);
       int chdirError=chdir(args[1]);
       //Error Handling
-
 
       if(firstCD) firstCD=false;
       for(int i=0; i<=argNum; i++) free(args[i]);
@@ -214,7 +222,7 @@ public:
     virtual ~ChangePromptCommand()= default;
     void execute() override{
         char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
-        int argNum=_parseCommandLine(this->cmd_line,args);
+        int argNum=_parseCommandLine(this->cmd_line,args,false);
         if (argNum > 1 ){
             promptName=args[1];
             promptName+="> ";

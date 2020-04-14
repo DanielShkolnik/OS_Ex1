@@ -13,6 +13,7 @@ string promptName=defaultPromptName;
 bool firstCD=true;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
+const std::string BACKSLASH = "\\";
 
 #if 0
 #define FUNC_ENTRY()  \
@@ -30,27 +31,29 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define EXEC(path, arg) \
   execvp((path), (arg));
 
-string _ltrim(const std::string& s)
+string _ltrim(const std::string& s, bool backSlash)
 {
-  size_t start = s.find_first_not_of(WHITESPACE);
+  if(backSlash) size_t start = s.find_first_not_of(BACKSLASH);
+  else size_t start = s.find_first_not_of(WHITESPACE);
   return (start == std::string::npos) ? "" : s.substr(start);
 }
 
-string _rtrim(const std::string& s)
+string _rtrim(const std::string& s, bool backSlash)
 {
-  size_t end = s.find_last_not_of(WHITESPACE);
+  if(backSlash) size_t end = s.find_last_not_of(BACKSLASH);
+  else size_t end = s.find_last_not_of(WHITESPACE);
   return (end == std::string::npos) ? "" : s.substr(0, end + 1);
 }
 
-string _trim(const std::string& s)
+string _trim(const std::string& s, bool backSlash)
 {
-  return _rtrim(_ltrim(s));
+  return _rtrim(_ltrim(s,backSlash),backSlash);
 }
 
-int _parseCommandLine(const char* cmd_line, char** args) {
+int _parseCommandLine(const char* cmd_line, char** args, bool backSlash) {
   FUNC_ENTRY()
   int i = 0;
-  std::istringstream iss(_trim(string(cmd_line)).c_str());
+  std::istringstream iss(_trim(string(cmd_line),backSlash).c_str());
   for(std::string s; iss >> s; ) {
     args[i] = (char*)malloc(s.length()+1);
     memset(args[i], 0, s.length()+1);
@@ -126,9 +129,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   }
 
   else if(cmd_s.find("cd")==0) {
-    char** plastPwd=(char**)malloc(sizeof(char*));
-    *plastPwd= nullptr;
-    return new ChangeDirCommand(cmd_line,plastPwd);
+    return new ChangeDirCommand(cmd_line);
   }
 
   /*
