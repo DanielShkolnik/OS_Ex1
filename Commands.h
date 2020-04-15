@@ -234,8 +234,8 @@ class JobsList {
       }
       void printJob(){
           time_t now =time(nullptr);
-          double time=difftime(this->command->getTimeElapsed(), now);
-          std::cout << "[" << this->getJobID() << "]" << this->command->getCMD() << ":" << this->command->getPID()
+          double time=difftime(now, this->command->getTimeElapsed());
+          std::cout << "[" << this->getJobID() << "] " << this->command->getCMD() << " : " << this->command->getPID()
                     << " " << time << " secs";
           if(this->isStopped) std::cout << "(stopped)" << std::endl;
           else std::cout << std::endl;
@@ -258,9 +258,8 @@ private:
         this->jobsList->push_back(JobEntry(jobID,cmd,isStopped));
     };
     void printJobsList(){
-        for(JobEntry job : *(this->jobsList)){
-            std::cout << "loop" << std::endl;
-            job.printJob();
+        for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
+            it->printJob();
         }
     };
   void killAllJobs();
@@ -274,10 +273,14 @@ private:
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members
+private:
+    JobsList* jobsList;
  public:
-  JobsCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~JobsCommand() {}
-  void execute() override;
+  JobsCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line),jobsList(jobsList){};
+  virtual ~JobsCommand() = default;
+    void execute() override{
+        this->jobsList->printJobsList();
+    }
 };
 
 class KillCommand : public BuiltInCommand {

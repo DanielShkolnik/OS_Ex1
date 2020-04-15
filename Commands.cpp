@@ -135,12 +135,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if(cmd_s.find("cd")==0) {
     return new ChangeDirCommand(cmd_line,this->plastPwd);
   }
-    /*
-     else if(cmd_s.find("jobs")==0) {
-       std::cout << "JobsCommand" << std::endl;
-       return new JobsCommand(cmd_line);
-     }
 
+  else if(cmd_s.find("jobs")==0) {
+    return new JobsCommand(cmd_line,this->jobsList);
+  }
+/*
        else if(cmd_s.find("kill")==0) {
          return new KillCommand(cmd_line);
        }
@@ -169,7 +168,9 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
-
   Command* cmd = CreateCommand(cmd_line);
+  if(_isBackgroundComamnd(cmd_line)){
+    this->jobsList->addJob(cmd);
+  }
   if(cmd!= nullptr) cmd->execute();
 }
