@@ -77,17 +77,17 @@ class ExternalCommand : public Command {
       //Parent:
       else{
           this->pid=pid;
+          SmallShell& smash=SmallShell::getInstance();
+          smash.setForegroundPid(pid);
           if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0);
       }
       free(cmd);
   };
 };
 
-class SmallShell;
+
 
 class ChangePromptCommand : public BuiltInCommand {
-private:
-    SmallShell* smash;
 public:
     ChangePromptCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
     virtual ~ChangePromptCommand()= default;
@@ -322,6 +322,7 @@ class SmallShell {
   // TODO: Add your data members
   char** plastPwd;
   JobsList* jobsList;
+  int foregroundPid;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -336,6 +337,12 @@ class SmallShell {
   ~SmallShell();
   void executeCommand(const char* cmd_line);
   // TODO: add extra methods as needed
+  int getForegroundPid(){
+      return this->foregroundPid;
+  }
+  void setForegroundPid(int foregroundPid){
+      this->foregroundPid=foregroundPid;
+  }
 };
 
 #endif //SMASH_COMMAND_H_
