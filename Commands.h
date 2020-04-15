@@ -23,15 +23,18 @@ void _removeBackgroundSign(char* cmd_line);
 class Command {
 // TODO: Add your data members
 protected:
-    const char* cmd_line;
+    char* cmd_line;
     time_t timeElapsed;
     int pid;
  public:
   Command(const char* cmd_line){
-      this->cmd_line = cmd_line;
+      this->cmd_line =(char*)malloc(strlen(cmd_line)+1);
+      strcpy(this->cmd_line,cmd_line);
       this->timeElapsed = time(nullptr);
   };
-  virtual ~Command() = default;
+  virtual ~Command(){
+      free(this->cmd_line);
+  };
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
@@ -39,12 +42,12 @@ protected:
   time_t getTimeElapsed(){
       return this->timeElapsed;
   }
-    const char*getCMD(){
-        return this->cmd_line;
-    }
-    int getPID(){
-        return this->pid;
-    }
+  const char*getCMD(){
+      return this->cmd_line;
+  }
+  int getPID(){
+      return this->pid;
+  }
 };
 
 class BuiltInCommand : public Command {
@@ -60,11 +63,6 @@ class ExternalCommand : public Command {
   void execute() override{
       char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
       strcpy(cmd,this->cmd_line);
-      /*
-      if(_isBackgroundComamnd(this->cmd_line)){
-          //Add to Job list
-          //_removeBackgroundSign(cmd);
-      }*/
       pid_t pid=fork();
       if(pid==-1) perror("smash error: fork failed");
       //Child:
@@ -72,13 +70,9 @@ class ExternalCommand : public Command {
           char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
           execv(argv[0], argv);
       }
-          //Parent:
+      //Parent:
       else{
           this->pid=pid;
-          /*
-          if(_isBackgroundComamnd(this->cmd_line)){
-              this->jobsList->addJob(this,false);
-          }*/
           waitpid(pid,NULL,0);
       }
       free(cmd);
