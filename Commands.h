@@ -57,36 +57,6 @@ class BuiltInCommand : public Command {
   virtual ~BuiltInCommand()= default;
 };
 
-class ExternalCommand : public Command {
- public:
-  ExternalCommand(const char* cmd_line):Command(cmd_line){};
-  virtual ~ExternalCommand() = default;
-  void execute() override{
-      char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
-      strcpy(cmd,this->cmd_line);
-      if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmd);
-      pid_t pid=fork();
-      if(pid==-1) perror("smash error: fork failed");
-      //Child:
-      if(pid==0){
-          char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
-          setpgrp();
-          execv(argv[0], argv);
-          perror("smash error: execv failed");
-      }
-      //Parent:
-      else{
-          this->pid=pid;
-          SmallShell& smash=SmallShell::getInstance();
-          smash.setForegroundPid(pid);
-          if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0);
-      }
-      free(cmd);
-  };
-};
-
-
-
 class ChangePromptCommand : public BuiltInCommand {
 public:
     ChangePromptCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
@@ -344,5 +314,35 @@ class SmallShell {
       this->foregroundPid=foregroundPid;
   }
 };
+
+
+class ExternalCommand : public Command {
+public:
+    ExternalCommand(const char* cmd_line):Command(cmd_line){};
+    virtual ~ExternalCommand() = default;
+    void execute() override{
+        char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
+        strcpy(cmd,this->cmd_line);
+        if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmd);
+        pid_t pid=fork();
+        if(pid==-1) perror("smash error: fork failed");
+        //Child:
+        if(pid==0){
+            char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
+            setpgrp();
+            execv(argv[0], argv);
+            perror("smash error: execv failed");
+        }
+            //Parent:
+        else{
+            this->pid=pid;
+            SmallShell& smash=SmallShell::getInstance();
+            smash.setForegroundPid(pid);
+            if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0);
+        }
+        free(cmd);
+    };
+};
+
 
 #endif //SMASH_COMMAND_H_

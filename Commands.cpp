@@ -170,12 +170,5 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
   Command* cmd = CreateCommand(cmd_line);
-  if(cmd!= nullptr){
-    cmd->execute();
-    if(dynamic_cast<ExternalCommand*>(cmd)!= nullptr){
-      this->setForegroundPid(cmd->getPID());
-      std::cout << "Command pid: " << cmd->getPID() << std::endl;
-      std::cout << "current pid: " << getpid() << std::endl;
-    }
-  }
+  if(cmd!= nullptr) cmd->execute();
 }
