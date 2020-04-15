@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <list>
+#include <sys/wait.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -63,17 +64,20 @@ class ExternalCommand : public Command {
   void execute() override{
       char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
       strcpy(cmd,this->cmd_line);
+      if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmd);
       pid_t pid=fork();
       if(pid==-1) perror("smash error: fork failed");
       //Child:
       if(pid==0){
           char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
+          setpgrp();
           execv(argv[0], argv);
+          perror("smash error: execv failed");
       }
       //Parent:
       else{
           this->pid=pid;
-          waitpid(pid,NULL,0);
+          if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0);
       }
       free(cmd);
   };

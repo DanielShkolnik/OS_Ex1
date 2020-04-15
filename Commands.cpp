@@ -155,9 +155,12 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
        */
 
   else {
-    return new ExternalCommand(cmd_line);
+    ExternalCommand* cmd= new ExternalCommand(cmd_line);
+    if(_isBackgroundComamnd(cmd_line)){
+      this->jobsList->addJob(cmd);
+    }
+    return cmd;
   }
-
 
   return nullptr;
 }
@@ -169,8 +172,5 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
   Command* cmd = CreateCommand(cmd_line);
-  if(_isBackgroundComamnd(cmd_line)){
-    this->jobsList->addJob(cmd);
-  }
   if(cmd!= nullptr) cmd->execute();
 }
