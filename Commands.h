@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <fstream>
+#include <time.h>
+#include <list>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -14,6 +16,11 @@ extern string defaultPromptName;
 extern string promptName;
 extern bool firstCD;
 
+class Command;
+class JobsList;
+class JobEntry;
+
+
 int _parseCommandLine(const char* cmd_line, char** args, bool backSlash);
 bool _isBackgroundComamnd(const char* cmd_line);
 void _removeBackgroundSign(char* cmd_line);
@@ -22,46 +29,56 @@ void _removeBackgroundSign(char* cmd_line);
 class Command {
  protected:
     const char* cmd_line;
+    time_t timeElapsed;
+    int pid;
+    JobsList* jobsList;
  public:
-  Command(const char* cmd_line){this->cmd_line = cmd_line;};
+  Command(const char* cmd_line, JobsList* jobsList){
+      this->cmd_line = cmd_line;
+      this->timeElapsed = time(nullptr);
+      this->jobsList = jobsList;
+  };
   virtual ~Command()= default;
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
+  time_t getTimeElapsed(){
+      return this->timeElapsed;
+  }
+  const char*getCMD(){
+      return this->cmd_line;
+  }
+  int getPID(){
+     return this->pid;
+  }
+
 };
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line):Command(cmd_line){};
+  BuiltInCommand(const char* cmd_line, JobsList* jobsList):Command(cmd_line,jobsList){};
   virtual ~BuiltInCommand() = default;
 };
 
-class ExternalCommand : public Command {
- public:
-  ExternalCommand(const char* cmd_line):Command(cmd_line){};
-  virtual ~ExternalCommand() = default;
-  void execute() override{
-      char cmd[COMMAND_ARGS_MAX_LENGTH];
-      strcpy(cmd,this->cmd_line);
-      if(_isBackgroundComamnd(this->cmd_line)){
-          //Add to Job list
-          _removeBackgroundSign(cmd);
-      }
-      pid_t pid=fork();
-      if(pid==-1) perror("smash error: fork failed");
-      //Child:
-      if(pid==0){
-          char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
-          execv(argv[0], argv);
 
-      }
-      //Parent:
-      else{
-          wait(NULL);
-      }
-  }
-};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class PipeCommand : public Command {
   // TODO: Add your data members
@@ -86,7 +103,7 @@ class ChangeDirCommand : public BuiltInCommand {
 private:
     char **plastPwd;
 public:
-    ChangeDirCommand(const char *cmd_line,char** plastPwd) : BuiltInCommand(cmd_line),plastPwd(plastPwd){};
+    ChangeDirCommand(const char *cmd_line,char** plastPwd, JobsList* jobsList) : BuiltInCommand(cmd_line,jobsList),plastPwd(plastPwd){};
   virtual ~ChangeDirCommand() = default;
   void execute() override{
       char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
@@ -126,7 +143,7 @@ public:
 
 class GetCurrDirCommand : public BuiltInCommand {
  public:
-  GetCurrDirCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
+  GetCurrDirCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line,jobsList){};
   virtual ~GetCurrDirCommand()= default;
   void execute() override{
       char* path=get_current_dir_name();
@@ -138,7 +155,7 @@ class GetCurrDirCommand : public BuiltInCommand {
 
 class ShowPidCommand : public BuiltInCommand {
  public:
-  ShowPidCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
+  ShowPidCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line,jobsList){};
   virtual ~ShowPidCommand() = default;
   void execute() override{
       std::cout << "smash pid is: " << getpid() << endl;
@@ -174,19 +191,57 @@ class HistoryCommand : public BuiltInCommand {
   void execute() override;
 };
 
+class JobEntry {
+    // TODO: Add your data members
+private:
+    int jobID;
+    Command* command;
+    bool isStopped;
+public:
+    JobEntry(int jobID, Command* command, bool isStopped):jobID(jobID),command(command),isStopped(isStopped){};
+    void setJobID(int jobID){
+        this->jobID=jobID;
+    }
+    int getJobID(){
+        return this->jobID;
+    }
+    void printJob(){
+        time_t now =time(nullptr);
+        double time=difftime(this->command->getTimeElapsed(), now);
+        std::cout << "[" << this->getJobID() << "]" << this->command->getCMD() << ":" << this->command->getPID()
+                  << " " << time << " secs";
+        if(this->isStopped) std::cout << "(stopped)" << std::endl;
+        else std::cout << std::endl;
+    }
+};
+
 class JobsList {
- public:
-  class JobEntry {
-   // TODO: Add your data members
-  };
  // TODO: Add your data members
+private:
+    std::list<JobEntry>* jobsList;
  public:
-  JobsList();
-  ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false);
-  void printJobsList();
+  JobsList():jobsList(new std::list<JobEntry>){};
+  ~JobsList(){
+      delete jobsList;
+  };
+  void addJob(Command* cmd, bool isStopped){
+      int jobID;
+      if(this->jobsList->empty()) jobID=1;
+      else {
+          jobID=this->jobsList->back().getJobID()+1;
+      }
+      this->jobsList->push_back(JobEntry(jobID,cmd,isStopped));
+  };
+  void printJobsList(){
+      for(JobEntry job : *(this->jobsList)){
+          std::cout << "loop" << std::endl;
+          job.printJob();
+      }
+  };
   void killAllJobs();
-  void removeFinishedJobs();
+  void removeFinishedJobs(){
+
+  };
   JobEntry * getJobById(int jobId);
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
@@ -197,9 +252,14 @@ class JobsList {
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  JobsCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~JobsCommand() {}
-  void execute() override;
+  JobsCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line,jobsList){
+      std::cout << "constructor" << std::endl;
+  };
+  virtual ~JobsCommand() = default;
+  void execute() override{
+      this->jobsList->printJobsList();
+      std::cout << "printJobsList" << std::endl;
+  }
 };
 
 class KillCommand : public BuiltInCommand {
@@ -239,7 +299,7 @@ class CopyCommand : public BuiltInCommand {
 
 class ChangePromptCommand : public BuiltInCommand {
 public:
-    ChangePromptCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
+    ChangePromptCommand(const char* cmd_line):BuiltInCommand(cmd_line,jobsList){};
     virtual ~ChangePromptCommand()= default;
     void execute() override{
         char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
@@ -264,7 +324,7 @@ class SmallShell {
   // TODO: Add your data members
   SmallShell();
  public:
-  Command *CreateCommand(const char* cmd_line, char** plastPwd);
+  Command *CreateCommand(const char* cmd_line, char** plastPwd, JobsList* jobsList);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
   static SmallShell& getInstance() // make SmallShell singleton
@@ -274,8 +334,48 @@ class SmallShell {
     return instance;
   }
   ~SmallShell();
-  void executeCommand(const char* cmd_line, char** plastPwd);
+  void executeCommand(const char* cmd_line, char** plastPwd, JobsList* jobsList);
   // TODO: add extra methods as needed
 };
+
+
+
+
+class ExternalCommand : public Command {
+public:
+    ExternalCommand(const char* cmd_line, JobsList* jobsList):Command(cmd_line,jobsList){};
+    virtual ~ExternalCommand() = default;
+    void execute() override{
+        char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
+        strcpy(cmd,this->cmd_line);
+        if(_isBackgroundComamnd(this->cmd_line)){
+            //Add to Job list
+            //_removeBackgroundSign(cmd);
+        }
+        pid_t pid=fork();
+        if(pid==-1) perror("smash error: fork failed");
+        //Child:
+        if(pid==0){
+            char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
+            execv(argv[0], argv);
+        }
+            //Parent:
+        else{
+            this->pid=pid;
+            if(_isBackgroundComamnd(this->cmd_line)){
+                this->jobsList->addJob(this,false);
+            }
+            waitpid(pid,NULL,0);
+        }
+        free(cmd);
+    }
+};
+
+
+
+
+
+
+
 
 #endif //SMASH_COMMAND_H_

@@ -2,11 +2,14 @@
 #include <string.h>
 #include <iostream>
 #include <vector>
+#include <list>
 #include <sstream>
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
 #include <fstream>
+#include <time.h>
+#include <list>
 
 using namespace std;
 string defaultPromptName="smash> ";
@@ -105,7 +108,7 @@ SmallShell::~SmallShell() {
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
-Command * SmallShell::CreateCommand(const char* cmd_line, char** plastPwd) {
+Command * SmallShell::CreateCommand(const char* cmd_line, char** plastPwd, JobsList* jobsList) {
   // For example:
 /*
   string cmd_s = string(cmd_line);
@@ -125,21 +128,22 @@ Command * SmallShell::CreateCommand(const char* cmd_line, char** plastPwd) {
   }
 
   else if (cmd_s.find("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
+    return new GetCurrDirCommand(cmd_line,jobsList);
   }
 
   else if(cmd_s.find("showpid")==0) {
-    return new ShowPidCommand(cmd_line);
+    return new ShowPidCommand(cmd_line,jobsList);
   }
 
   else if(cmd_s.find("cd")==0) {
-    return new ChangeDirCommand(cmd_line,plastPwd);
+    return new ChangeDirCommand(cmd_line,plastPwd,jobsList);
   }
 
-  /*
   else if(cmd_s.find("jobs")==0) {
-    return new JobsCommand(cmd_line);
+    std::cout << "JobsCommand" << std::endl;
+    return new JobsCommand(cmd_line,jobsList);
   }
+  /*
   else if(cmd_s.find("kill")==0) {
     return new KillCommand(cmd_line);
   }
@@ -155,16 +159,16 @@ Command * SmallShell::CreateCommand(const char* cmd_line, char** plastPwd) {
   */
 
   else {
-    return new ExternalCommand(cmd_line);
+    return new ExternalCommand(cmd_line, jobsList);
   }
 
   return nullptr;
 }
 
 
-void SmallShell::executeCommand(const char *cmd_line,char** plastPwd) {
+void SmallShell::executeCommand(const char *cmd_line,char** plastPwd, JobsList* jobsList) {
   // TODO: Add your implementation here
-   Command* cmd = CreateCommand(cmd_line,plastPwd);
+   Command* cmd = CreateCommand(cmd_line,plastPwd,jobsList);
    if(cmd!= nullptr) cmd->execute();
 
   // Command* cmd = CreateCommand(cmd_line);
