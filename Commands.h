@@ -8,6 +8,7 @@
 #include <list>
 #include <sys/wait.h>
 
+
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define HISTORY_MAX_RECORDS (50)
@@ -25,13 +26,11 @@ class Command {
 // TODO: Add your data members
 protected:
     char* cmd_line;
-    time_t timeElapsed;
     int pid;
  public:
   Command(const char* cmd_line){
       this->cmd_line =(char*)malloc(strlen(cmd_line)+1);
       strcpy(this->cmd_line,cmd_line);
-      this->timeElapsed = time(nullptr);
   };
   virtual ~Command(){
       free(this->cmd_line);
@@ -40,24 +39,20 @@ protected:
   Command(const Command& command){
         this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
         strcpy(this->cmd_line, command.cmd_line);
-        this->timeElapsed=command.timeElapsed;
         this->pid=command.pid;
   };
   //Operator= Constructor
   Command& operator=(const Command& command){
       this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
       strcpy(this->cmd_line, command.cmd_line);
-      this->timeElapsed=command.timeElapsed;
       this->pid=command.pid;
       return *this;
   };
+
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
-  time_t getTimeElapsed(){
-      return this->timeElapsed;
-  }
   const char*getCMD(){
       return this->cmd_line;
   }
@@ -194,39 +189,79 @@ class HistoryCommand : public BuiltInCommand {
   void execute() override;
 };
 
+
+
+
+
+
+
+
+
+
+
 class JobsList {
  public:
   class JobEntry {
    // TODO: Add your data members
   private:
       int jobID;
-      Command* command;
       bool isStopped;
+      time_t timeElapsed;
+      int jobPid;
+      char* cmd_line;
   public:
-      JobEntry(int jobID, Command* command, bool isStopped):jobID(jobID),command(command),isStopped(isStopped){};
+      JobEntry(int jobID, bool isStopped, time_t timeElapsed, int pid, char* cmd_line):jobID(jobID),isStopped(isStopped){
+          this->cmd_line=(char*)malloc(sizeof(char)*(strlen(cmd_line)+1));
+          strcpy(this->cmd_line,cmd_line);
+      };
       void setJobID(int jobID){
           this->jobID=jobID;
       }
+      //Copy Constructor
+      JobEntry(const JobEntry& jobEntry){
+          this->jobID=jobEntry.jobID;
+          this->isStopped=jobEntry.isStopped;
+          this->timeElapsed=timeElapsed;
+          this->jobPid=jobPid;
+          this->cmd_line=(char*)malloc(sizeof(char)*(strlen(jobEntry.cmd_line)+1));
+          strcpy(this->cmd_line,jobEntry.cmd_line);
+      };
+      //Operator= Constructor
+      JobEntry& operator=(const JobEntry& jobEntry){
+          this->jobID=jobEntry.jobID;
+          this->isStopped=jobEntry.isStopped;
+          this->timeElapsed=timeElapsed;
+          this->jobPid=jobPid;
+          this->cmd_line=(char*)malloc(sizeof(char)*(strlen(jobEntry.cmd_line)+1));
+          strcpy(this->cmd_line,jobEntry.cmd_line);
+          return *this;
+      };
+
       int getJobID(){
           return this->jobID;
       }
       void printJob(){
           time_t now =time(nullptr);
-          double time=difftime(now, this->command->getTimeElapsed());
-          std::cout << "[" << this->getJobID() << "] " << this->command->getCMD() << " : " << this->command->getPID()
+          double time=difftime(now, this->timeElapsed);
+          std::cout << "[" << this->getJobID() << "] " << this->cmd_line << " : " << this->jobPid
                     << " " << time << " secs";
           if(this->isStopped) std::cout << "(stopped)" << std::endl;
           else std::cout << std::endl;
       }
-      Command* getCommand(){
-          return this->command;
-      }
       void setIsStopped(bool isStopped){
           this->isStopped=isStopped;
       }
-
       bool getIsStopped(){
           return this->isStopped;
+      }
+      int getJobPid(){
+          return this->jobPid;
+      }
+      time_t getTimeElapsed(){
+          return this->timeElapsed;
+      }
+      char* getCmdLine(){
+          return this->cmd_line;
       }
 
   };
@@ -239,13 +274,13 @@ private:
     ~JobsList(){
         delete jobsList;
     };
-    void addJob(Command* cmd, bool isStopped = false){
+    void addJob(int jobPid, char* cmd_line, bool isStopped = false){
         int jobID;
         if(this->jobsList->empty()) jobID=1;
         else {
             jobID=this->jobsList->back().getJobID()+1;
         }
-        this->jobsList->push_back(JobEntry(jobID,cmd,isStopped));
+        this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line));
     };
     void printJobsList(){
         for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
@@ -254,7 +289,7 @@ private:
     };
   void removeFinishedJobs(){
       for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end();){
-          int commandPid=it->getCommand()->getPID();
+          int commandPid=it->getJobPid();
           if(waitpid(commandPid,NULL,WNOHANG)==commandPid){
               it=this->jobsList->erase(it);
               if(it==this->jobsList->end()) break;
@@ -282,8 +317,8 @@ private:
 
   void killAllJobs(){
       for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
-          std::cout << it->getCommand()->getPID() << ": " << it->getCommand()->getCMD() << std::endl;
-          if(kill(it->getCommand()->getPID(),SIGKILL)==-1) perror("smash error: kill failed");
+          std::cout << it->getJobPid() << ": " << it->getCmdLine() << std::endl;
+          if(kill(it->getJobPid(),SIGKILL)==-1) perror("smash error: kill failed");
       }
   };
 
@@ -355,7 +390,7 @@ private:
           free(args);
           return;
       }
-      int jobPid=jobByID->getCommand()->getPID();
+      int jobPid=jobByID->getJobPid();
       if(kill(jobPid,sigNum)==-1) perror("smash error: kill failed");
 
       else {
@@ -367,6 +402,92 @@ private:
       free(args);
   };
 };
+
+
+class SmallShell {
+private:
+    // TODO: Add your data members
+    char** plastPwd;
+    JobsList* jobsList;
+    int foregroundPid;
+    char* foregroundCmdLine;
+    bool isQuit;
+    SmallShell();
+public:
+    Command *CreateCommand(const char* cmd_line);
+    SmallShell(SmallShell const&)      = delete; // disable copy ctor
+    void operator=(SmallShell const&)  = delete; // disable = operator
+    static SmallShell& getInstance() // make SmallShell singleton
+    {
+        static SmallShell instance; // Guaranteed to be destroyed.
+        // Instantiated on first use.
+        return instance;
+    }
+    ~SmallShell();
+    void executeCommand(const char* cmd_line);
+    // TODO: add extra methods as needed
+    int getForegroundPid(){
+        return this->foregroundPid;
+    }
+    void setForegroundPid(int foregroundPid){
+        this->foregroundPid=foregroundPid;
+    }
+    JobsList* getJobsList(){
+        return this->jobsList;
+    }
+    char* getForegroundCmdLine(){
+        return this->foregroundCmdLine;
+    }
+    void setForegroundCmdLine(char* foregroundCmdLine){
+        free(this->foregroundCmdLine);
+        this->foregroundCmdLine=(char*)malloc(sizeof(char)*(strlen(foregroundCmdLine)+1));
+        strcpy(this->foregroundCmdLine,foregroundCmdLine);
+    };
+    void setIsQuit(bool isQuit){
+        this->isQuit=isQuit;
+    }
+    bool getIsQuit(){
+        return this->isQuit;
+    }
+};
+
+
+class ExternalCommand : public Command {
+public:
+    ExternalCommand(const char* cmd_line):Command(cmd_line){};
+    virtual ~ExternalCommand() = default;
+
+    //Copy Constructor
+    ExternalCommand(const ExternalCommand& command) = default;
+    //Operator= Constructor
+    ExternalCommand& operator=(const ExternalCommand& command)= default;
+
+    void execute() override{
+        char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
+        strcpy(cmd,this->cmd_line);
+        if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmd);
+        pid_t pid=fork();
+        if(pid==-1) perror("smash error: fork failed");
+        //Child:
+        if(pid==0){
+            char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
+            setpgrp();
+            execv(argv[0], argv);
+            perror("smash error: execv failed");
+        }
+            //Parent:
+        else{
+            this->pid=pid;
+            SmallShell& smash=SmallShell::getInstance();
+            smash.setForegroundPid(pid);
+            smash.setForegroundCmdLine(this->cmd_line);
+            if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0 | WUNTRACED);
+            else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
+        }
+        free(cmd);
+    };
+};
+
 
 
 
@@ -382,95 +503,8 @@ class CopyCommand : public BuiltInCommand {
 // TODO: add more classes if needed 
 // maybe chprompt , timeout ?
 
-class SmallShell {
- private:
-  // TODO: Add your data members
-  char** plastPwd;
-  JobsList* jobsList;
-  int foregroundPid;
-  Command* foregroundCommand;
-  bool isQuit=false;
-  SmallShell();
- public:
-  Command *CreateCommand(const char* cmd_line);
-  SmallShell(SmallShell const&)      = delete; // disable copy ctor
-  void operator=(SmallShell const&)  = delete; // disable = operator
-  static SmallShell& getInstance() // make SmallShell singleton
-  {
-    static SmallShell instance; // Guaranteed to be destroyed.
-    // Instantiated on first use.
-    return instance;
-  }
-  ~SmallShell();
-  void executeCommand(const char* cmd_line);
-  // TODO: add extra methods as needed
-  int getForegroundPid(){
-      return this->foregroundPid;
-  }
-  void setForegroundPid(int foregroundPid){
-      this->foregroundPid=foregroundPid;
-  }
-  JobsList* getJobsList(){
-      return this->jobsList;
-  }
-  Command* getForegroundCommand(){
-      return this->foregroundCommand;
-  }
-  void setForegroundCommand(Command* foregroundCommand){
-      this->foregroundCommand=foregroundCommand;
-  };
-  void setIsQuit(bool isQuit){
-      this->isQuit=isQuit;
-  }
-  bool getIsQuit(){
-      return this->isQuit;
-  }
-};
 
 
-class ExternalCommand : public Command {
-public:
-    ExternalCommand(const char* cmd_line):Command(cmd_line){};
-    virtual ~ExternalCommand() = default;
-    //Copy Constructor
-    ExternalCommand(const ExternalCommand& command){
-        this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
-        strcpy(this->cmd_line, command.cmd_line);
-        this->timeElapsed=command.timeElapsed;
-        this->pid=command.pid;
-    };
-    //Operator= Constructor
-    Command& operator=(const Command& command){
-        this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
-        strcpy(this->cmd_line, command.cmd_line);
-        this->timeElapsed=command.timeElapsed;
-        this->pid=command.pid;
-        return *this;
-    };
-    void execute() override{
-        char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
-        strcpy(cmd,this->cmd_line);
-        if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmd);
-        pid_t pid=fork();
-        if(pid==-1) perror("smash error: fork failed");
-        //Child:
-        if(pid==0){
-            char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
-            setpgrp();
-            execv(argv[0], argv);
-            perror("smash error: execv failed");
-        }
-        //Parent:
-        else{
-            this->pid=pid;
-            SmallShell& smash=SmallShell::getInstance();
-            smash.setForegroundPid(pid);
-            smash.setForegroundCommand(this);
-            if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0 | WUNTRACED);
-        }
-        free(cmd);
-    };
-};
 
 
 class ForegroundCommand : public BuiltInCommand {
@@ -493,12 +527,12 @@ public:
                 return;
             }
             this->jobsList->removeJobById(lastJob->getJobID());
-            std::cout << lastJob->getCommand()->getCMD() << " : " << lastJob->getCommand()->getPID() << std::endl;
+            std::cout << lastJob->getCmdLine() << " : " << lastJob->getJobPid() << std::endl;
             SmallShell& smash=SmallShell::getInstance();
-            smash.setForegroundPid(lastJob->getCommand()->getPID());
-            smash.setForegroundCommand(lastJob->getCommand());
+            smash.setForegroundPid(lastJob->getJobPid());
+            smash.setForegroundCmdLine(lastJob->getCmdLine());
             if(lastJob->getIsStopped()){
-                if(kill(lastJob->getCommand()->getPID(),SIGCONT)==-1){
+                if(kill(lastJob->getJobPid(),SIGCONT)==-1){
                     perror("smash error: kill failed");
                     for(int i=0; i<argNum; i++) free(args[i]);
                     free(args);
@@ -506,7 +540,7 @@ public:
                 }
                 lastJob->setIsStopped(false);
             }
-            waitpid(lastJob->getCommand()->getPID(),NULL,0 | WUNTRACED);
+            waitpid(lastJob->getJobPid(),NULL,0 | WUNTRACED);
         }
         if(argNum==2) {
             int jobID;
@@ -526,12 +560,12 @@ public:
                 }
                 else{
                     this->jobsList->removeJobById(job->getJobID());
-                    std::cout << job->getCommand()->getCMD() << " : " << job->getCommand()->getPID() << std::endl;
+                    std::cout << job->getCmdLine() << " : " << job->getJobPid() << std::endl;
                     SmallShell& smash=SmallShell::getInstance();
-                    smash.setForegroundPid(job->getCommand()->getPID());
-                    smash.setForegroundCommand(job->getCommand());
+                    smash.setForegroundPid(job->getJobPid());
+                    smash.setForegroundCmdLine(job->getCmdLine());
                     if(job->getIsStopped()){
-                        if(kill(job->getCommand()->getPID(),SIGCONT)==-1){
+                        if(kill(job->getJobPid(),SIGCONT)==-1){
                             perror("smash error: kill failed");
                             for(int i=0; i<argNum; i++) free(args[i]);
                             free(args);
@@ -539,7 +573,7 @@ public:
                         }
                         job->setIsStopped(false);
                     }
-                    if(waitpid(job->getCommand()->getPID(),NULL,0 | WUNTRACED)==-1){
+                    if(waitpid(job->getJobPid(),NULL,0 | WUNTRACED)==-1){
                         perror("smash error: waitpid failed");
                         for(int i=0; i<argNum; i++) free(args[i]);
                         free(args);
@@ -575,8 +609,8 @@ public:
                 free(args);
                 return;
             }
-            std::cout << lastStoppedJob->getCommand()->getCMD() << " : " << lastStoppedJob->getCommand()->getPID() << std::endl;
-            if(kill(lastStoppedJob->getCommand()->getPID(),SIGCONT)==-1){
+            std::cout << lastStoppedJob->getCmdLine() << " : " << lastStoppedJob->getJobPid() << std::endl;
+            if(kill(lastStoppedJob->getJobPid(),SIGCONT)==-1){
                 perror("smash error: kill failed");
                 for(int i=0; i<argNum; i++) free(args[i]);
                 free(args);
@@ -602,8 +636,8 @@ public:
                 }
                 else{
                     if(stoppedJob->getIsStopped()){
-                        std::cout << stoppedJob->getCommand()->getCMD() << " : " << stoppedJob->getCommand()->getPID() << std::endl;
-                        if(kill(stoppedJob->getCommand()->getPID(),SIGCONT)==-1){
+                        std::cout << stoppedJob->getCmdLine() << " : " << stoppedJob->getJobPid() << std::endl;
+                        if(kill(stoppedJob->getJobPid(),SIGCONT)==-1){
                             perror("smash error: kill failed");
                             for(int i=0; i<argNum; i++) free(args[i]);
                             free(args);
@@ -611,7 +645,7 @@ public:
                         }
                     }
                     else{
-                        std::cout << "smash error: bg: job-id "<< stoppedJob->getCommand()->getPID() <<" is already running in the background" << std::endl;
+                        std::cout << "smash error: bg: job-id "<< stoppedJob->getJobPid() <<" is already running in the background" << std::endl;
                     }
                 }
             }

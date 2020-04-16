@@ -10,7 +10,7 @@ void ctrlZHandler(int sig_num) {
     SmallShell& smash=SmallShell::getInstance();
     if(smash.getForegroundPid()!=-1){
         kill(smash.getForegroundPid(),SIGSTOP);
-        smash.getJobsList()->addJob(smash.getForegroundCommand(),true);
+        smash.getJobsList()->addJob(smash.getForegroundPid(),smash.getForegroundCmdLine(),true);
         std::cout << "smash: process " << smash.getForegroundPid() << " was stopped" << std::endl;
         smash.setForegroundPid(-1);
     }

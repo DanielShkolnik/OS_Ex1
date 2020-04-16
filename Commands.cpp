@@ -94,6 +94,8 @@ SmallShell::SmallShell() {
 // TODO: add your implementation
   this->plastPwd= (char**) malloc(sizeof(char*));
   this->jobsList= new JobsList;
+  this->isQuit=false;
+  this->foregroundCmdLine= nullptr;
 }
 
 SmallShell::~SmallShell() {
@@ -101,7 +103,7 @@ SmallShell::~SmallShell() {
   free(*plastPwd);
   free(plastPwd);
   delete jobsList;
-  delete foregroundCommand;
+  free(foregroundCmdLine);
 }
 
 /**
@@ -159,7 +161,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 
    else {
      ExternalCommand* cmd= new ExternalCommand(cmd_line);
-     if(_isBackgroundComamnd(cmd_line)) this->jobsList->addJob(cmd);
+     //if(_isBackgroundComamnd(cmd_line)) this->jobsList->addJob(cmd);
      return cmd;
    }
 
