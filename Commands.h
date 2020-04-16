@@ -36,6 +36,21 @@ protected:
   virtual ~Command(){
       free(this->cmd_line);
   };
+  //Copy Constructor
+  Command(const Command& command){
+        this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
+        strcpy(this->cmd_line, command.cmd_line);
+        this->timeElapsed=command.timeElapsed;
+        this->pid=command.pid;
+  };
+  //Operator= Constructor
+  Command& operator=(const Command& command){
+      this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
+      strcpy(this->cmd_line, command.cmd_line);
+      this->timeElapsed=command.timeElapsed;
+      this->pid=command.pid;
+      return *this;
+  };
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
@@ -185,10 +200,12 @@ class JobsList {
    // TODO: Add your data members
   private:
       int jobID;
-      Command* command;
       bool isStopped;
+      Command* command;
   public:
-      JobEntry(int jobID, Command* command, bool isStopped):jobID(jobID),command(command),isStopped(isStopped){};
+      JobEntry(int jobID, Command* command, bool isStopped):jobID(jobID),isStopped(isStopped){
+          this->command=new Command(command->getCMD());
+      };
       void setJobID(int jobID){
           this->jobID=jobID;
       }
@@ -317,7 +334,7 @@ private:
       int argNum=_parseCommandLine(this->cmd_line,args);
       if(argNum!=3){
           std::cout << "smash error: kill: invalid arguments" << std::endl;
-          for(int i=1; i<argNum; i++) free(args[i]);
+          for(int i=0; i<argNum; i++) free(args[i]);
           free(args);
           return;
       }
@@ -328,7 +345,7 @@ private:
       }
       catch(const std::invalid_argument&){
           std::cout << "smash error: kill: invalid arguments" << std::endl;
-          for(int i=1; i<argNum; i++) free(args[i]);
+          for(int i=0; i<argNum; i++) free(args[i]);
           free(args);
           return;
       }
@@ -336,7 +353,7 @@ private:
       JobsList::JobEntry* jobByID=this->jobsList->getJobById(jobNum);
       if(jobByID == nullptr){
           std::cout << "smash error: kill: job-id " << jobNum <<" does not exist" << std::endl;
-          for(int i=1; i<argNum; i++) free(args[i]);
+          for(int i=0; i<argNum; i++) free(args[i]);
           free(args);
           return;
       }
@@ -348,7 +365,7 @@ private:
           if(sigNum==SIGCONT) jobByID->setIsStopped(false);
           std::cout << "signal number " << sigNum <<" was sent to pid " << jobPid << std::endl;
       }
-      for(int i=1; i<argNum; i++) free(args[i]);
+      for(int i=0; i<argNum; i++) free(args[i]);
       free(args);
   };
 };
@@ -608,7 +625,9 @@ public:
             std::cout << "smash: sending SIGKILL signal to "<<  this->jobsList->getJobsListSize() << " jobs:" << std::endl;
             this->jobsList->killAllJobs();
         }
-        for(int i=1; i<argNum; i++) free(args[i]);
+        for(int i=0; i<argNum; i++){
+            free(args[i]);
+        }
         free(args);
         SmallShell& smash=SmallShell::getInstance();
         smash.setIsQuit(true);
