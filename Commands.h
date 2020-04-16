@@ -210,7 +210,8 @@ class JobsList {
       int jobPid;
       char* cmd_line;
   public:
-      JobEntry(int jobID, bool isStopped, time_t timeElapsed, int pid, char* cmd_line):jobID(jobID),isStopped(isStopped){
+      JobEntry(int jobID, bool isStopped, time_t timeElapsed, int jobPid, char* cmd_line):jobID(jobID),
+                isStopped(isStopped),timeElapsed(timeElapsed),jobPid(jobPid){
           this->cmd_line=(char*)malloc(sizeof(char)*(strlen(cmd_line)+1));
           strcpy(this->cmd_line,cmd_line);
       };
