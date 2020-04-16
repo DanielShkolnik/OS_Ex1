@@ -156,12 +156,7 @@ class ShowPidCommand : public BuiltInCommand {
 };
 
 class JobsList;
-class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members public:
-  QuitCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~QuitCommand() {}
-  void execute() override;
-};
+
 
 class CommandsHistory {
  protected:
@@ -267,13 +262,15 @@ private:
               break;
           }
       }
+
   };
 
   void killAllJobs(){
       for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
+          std::cout << it->getCommand()->getPID() << ": " << it->getCommand()->getCMD() << std::endl;
           if(kill(it->getCommand()->getPID(),SIGKILL)==-1) perror("smash error: kill failed");
       }
-  }
+  };
 
 
   JobEntry* getLastJob(){
@@ -288,6 +285,10 @@ private:
       }
       return nullptr;
   };
+
+    int getJobsListSize(){
+        return this->jobsList->size();
+    };
 
   // TODO: Add extra methods or modify exisitng ones as needed
 };
@@ -355,25 +356,6 @@ private:
 
 
 
-
-
-
-
-
-
-
-
-
-
-class BackgroundCommand : public BuiltInCommand {
- // TODO: Add your data members
- public:
-  BackgroundCommand(const char* cmd_line, JobsList* jobsList);
-  virtual ~BackgroundCommand() {}
-  void execute() override;
-};
-
-
 // TODO: should it really inhirit from BuiltInCommand ?
 class CopyCommand : public BuiltInCommand {
  public:
@@ -392,6 +374,7 @@ class SmallShell {
   JobsList* jobsList;
   int foregroundPid;
   Command* foregroundCommand;
+  bool isQuit=false;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -421,6 +404,12 @@ class SmallShell {
   void setForegroundCommand(Command* foregroundCommand){
       this->foregroundCommand=foregroundCommand;
   };
+  void setIsQuit(bool isQuit){
+      this->isQuit=isQuit;
+  }
+  bool getIsQuit(){
+      return this->isQuit;
+  }
 };
 
 
@@ -478,6 +467,15 @@ public:
             SmallShell& smash=SmallShell::getInstance();
             smash.setForegroundPid(lastJob->getCommand()->getPID());
             smash.setForegroundCommand(lastJob->getCommand());
+            if(lastJob->getIsStopped()){
+                if(kill(lastJob->getCommand()->getPID(),SIGCONT)==-1){
+                    perror("smash error: kill failed");
+                    for(int i=0; i<argNum; i++) free(args[i]);
+                    free(args);
+                    return;
+                }
+                lastJob->setIsStopped(false);
+            }
             waitpid(lastJob->getCommand()->getPID(),NULL,0 | WUNTRACED);
         }
         if(argNum==2) {
@@ -502,18 +500,123 @@ public:
                     SmallShell& smash=SmallShell::getInstance();
                     smash.setForegroundPid(job->getCommand()->getPID());
                     smash.setForegroundCommand(job->getCommand());
-                    waitpid(job->getCommand()->getPID(),NULL,0 | WUNTRACED);
+                    if(job->getIsStopped()){
+                        if(kill(job->getCommand()->getPID(),SIGCONT)==-1){
+                            perror("smash error: kill failed");
+                            for(int i=0; i<argNum; i++) free(args[i]);
+                            free(args);
+                            return;
+                        }
+                        job->setIsStopped(false);
+                    }
+                    if(waitpid(job->getCommand()->getPID(),NULL,0 | WUNTRACED)==-1){
+                        perror("smash error: waitpid failed");
+                        for(int i=0; i<argNum; i++) free(args[i]);
+                        free(args);
+                        return;
+                    }
                 }
             }
         }
         if((argNum!=1 && argNum!=2) || invalidArg){
             std::cout << "smash error: fg: invalid arguments" << std::endl;
         }
-
         for(int i=0; i<argNum; i++) free(args[i]);
         free(args);
     };
 };
+
+class BackgroundCommand : public BuiltInCommand {
+    // TODO: Add your data members
+private:
+    JobsList* jobsList;
+public:
+    BackgroundCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line),jobsList(jobsList){};
+    virtual ~BackgroundCommand() = default;
+    void execute() override{
+        bool invalidArg=false;
+        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+        int argNum=_parseCommandLine(this->cmd_line,args);
+        if(argNum==1){
+            JobsList::JobEntry* lastStoppedJob=this->jobsList->getLastStoppedJob();
+            if(lastStoppedJob == nullptr){
+                std::cout << "smash error: bg: there is no stopped jobs to resume" << std::endl;
+                for(int i=0; i<argNum; i++) free(args[i]);
+                free(args);
+                return;
+            }
+            std::cout << lastStoppedJob->getCommand()->getCMD() << " : " << lastStoppedJob->getCommand()->getPID() << std::endl;
+            if(kill(lastStoppedJob->getCommand()->getPID(),SIGCONT)==-1){
+                perror("smash error: kill failed");
+                for(int i=0; i<argNum; i++) free(args[i]);
+                free(args);
+                return;
+            }
+            lastStoppedJob->setIsStopped(false);
+        }
+        if(argNum==2) {
+            int jobID;
+            try{
+                jobID=abs(stoi(args[1]));
+            }
+            catch(const std::invalid_argument&){
+                invalidArg=true;
+            }
+            if(!invalidArg){
+                JobsList::JobEntry* stoppedJob=this->jobsList->getJobById(jobID);
+                if(stoppedJob == nullptr){
+                    std::cout << "smash error: bg: job-id " << jobID << " does not exist" << std::endl;
+                    for(int i=0; i<argNum; i++) free(args[i]);
+                    free(args);
+                    return;
+                }
+                else{
+                    if(stoppedJob->getIsStopped()){
+                        std::cout << stoppedJob->getCommand()->getCMD() << " : " << stoppedJob->getCommand()->getPID() << std::endl;
+                        if(kill(stoppedJob->getCommand()->getPID(),SIGCONT)==-1){
+                            perror("smash error: kill failed");
+                            for(int i=0; i<argNum; i++) free(args[i]);
+                            free(args);
+                            return;
+                        }
+                    }
+                    else{
+                        std::cout << "smash error: bg: job-id "<< stoppedJob->getCommand()->getPID() <<" is already running in the background" << std::endl;
+                    }
+                }
+            }
+        }
+        if((argNum!=1 && argNum!=2) || invalidArg){
+            std::cout << "smash error: bg: invalid arguments" << std::endl;
+        }
+        for(int i=0; i<argNum; i++) free(args[i]);
+        free(args);
+    };
+};
+
+class QuitCommand : public BuiltInCommand {
+// TODO: Add your data members public:
+private:
+    JobsList* jobsList;
+public:
+    QuitCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line),jobsList(jobsList){};
+    virtual ~QuitCommand() = default;
+    void execute() override{
+        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+        int argNum=_parseCommandLine(this->cmd_line,args);
+        if(argNum>=2 && strcmp(args[1],"kill")==0){
+            std::cout << "smash: sending SIGKILL signal to "<<  this->jobsList->getJobsListSize() << " jobs:" << std::endl;
+            this->jobsList->killAllJobs();
+        }
+        for(int i=1; i<argNum; i++) free(args[i]);
+        free(args);
+        SmallShell& smash=SmallShell::getInstance();
+        smash.setIsQuit(true);
+    };
+};
+
+
+
 
 
 #endif //SMASH_COMMAND_H_

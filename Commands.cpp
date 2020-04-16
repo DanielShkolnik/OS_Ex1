@@ -101,6 +101,7 @@ SmallShell::~SmallShell() {
   free(*plastPwd);
   free(plastPwd);
   delete jobsList;
+  delete foregroundCommand;
 }
 
 /**
@@ -148,20 +149,19 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
      return new ForegroundCommand(cmd_line,this->jobsList);
    }
 
-    /*
-    else if(cmd_s.find("bg")==0) {
-      return new BackgroundCommand(cmd_line);
-    }
-    else if(cmd_s.find("quit")==0) {
-      return new QuitCommand(cmd_line);
-    }
-    */
+   else if(cmd_s.find("bg")==0) {
+     return new BackgroundCommand(cmd_line,this->jobsList);
+   }
 
-  else {
-    ExternalCommand* cmd= new ExternalCommand(cmd_line);
-    if(_isBackgroundComamnd(cmd_line)) this->jobsList->addJob(cmd);
-    return cmd;
-  }
+   else if(cmd_s.find("quit")==0) {
+     return new QuitCommand(cmd_line,this->jobsList);
+   }
+
+   else {
+     ExternalCommand* cmd= new ExternalCommand(cmd_line);
+     if(_isBackgroundComamnd(cmd_line)) this->jobsList->addJob(cmd);
+     return cmd;
+   }
 
   return nullptr;
 }
