@@ -82,7 +82,7 @@ public:
         promptName=defaultPromptName;
       }
       for(int i=0; i<argNum; i++) free(args[i]);
-      free(args);
+
     }
 };
 
@@ -119,6 +119,7 @@ public:
           std::cout << "smash error: cd: too many arguments" << endl;
           return;
       }
+      if(argNum==1) return;
       if(strcmp(args[1],"-")==0){
           if(firstCD) std::cout << "smash error: cd: OLDPWD not set" << endl;
           else {
@@ -141,7 +142,7 @@ public:
 
       if(firstCD) firstCD=false;
       for(int i=0; i<argNum; i++) free(args[i]);
-      free(args);
+
   }
 };
 
@@ -222,8 +223,8 @@ class JobsList {
       JobEntry(const JobEntry& jobEntry){
           this->jobID=jobEntry.jobID;
           this->isStopped=jobEntry.isStopped;
-          this->timeElapsed=timeElapsed;
-          this->jobPid=jobPid;
+          this->timeElapsed=jobEntry.timeElapsed;
+          this->jobPid=jobEntry.jobPid;
           this->cmd_line=(char*)malloc(sizeof(char)*(strlen(jobEntry.cmd_line)+1));
           strcpy(this->cmd_line,jobEntry.cmd_line);
       };
@@ -231,8 +232,8 @@ class JobsList {
       JobEntry& operator=(const JobEntry& jobEntry){
           this->jobID=jobEntry.jobID;
           this->isStopped=jobEntry.isStopped;
-          this->timeElapsed=timeElapsed;
-          this->jobPid=jobPid;
+          this->timeElapsed=jobEntry.timeElapsed;
+          this->jobPid=jobEntry.jobPid;
           this->cmd_line=(char*)malloc(sizeof(char)*(strlen(jobEntry.cmd_line)+1));
           strcpy(this->cmd_line,jobEntry.cmd_line);
           return *this;
@@ -364,12 +365,12 @@ private:
   KillCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line),jobsList(jobsList){};
   virtual ~KillCommand() = default;
   void execute() override{
-      char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+      char *args[COMMAND_ARGS_MAX_LENGTH];
+      //char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
       int argNum=_parseCommandLine(this->cmd_line,args);
       if(argNum!=3){
           std::cout << "smash error: kill: invalid arguments" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
-          free(args);
           return;
       }
       int sigNum,jobNum;
@@ -380,7 +381,6 @@ private:
       catch(const std::invalid_argument&){
           std::cout << "smash error: kill: invalid arguments" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
-          free(args);
           return;
       }
 
@@ -388,7 +388,6 @@ private:
       if(jobByID == nullptr){
           std::cout << "smash error: kill: job-id " << jobNum <<" does not exist" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
-          free(args);
           return;
       }
       int jobPid=jobByID->getJobPid();
@@ -399,8 +398,8 @@ private:
           if(sigNum==SIGCONT) jobByID->setIsStopped(false);
           std::cout << "signal number " << sigNum <<" was sent to pid " << jobPid << std::endl;
       }
+
       for(int i=0; i<argNum; i++) free(args[i]);
-      free(args);
   };
 };
 
@@ -517,14 +516,14 @@ public:
     virtual ~ForegroundCommand() = default;
     void execute() override{
         bool invalidArg=false;
-        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+        char *args[COMMAND_ARGS_MAX_LENGTH];
         int argNum=_parseCommandLine(this->cmd_line,args);
         if(argNum==1){
             JobsList::JobEntry* lastJob=this->jobsList->getLastJob();
             if(lastJob == nullptr){
                 std::cout << "smash error: fg: jobs list is empty" << std::endl;
                 for(int i=0; i<argNum; i++) free(args[i]);
-                free(args);
+
                 return;
             }
             this->jobsList->removeJobById(lastJob->getJobID());
@@ -536,7 +535,7 @@ public:
                 if(kill(lastJob->getJobPid(),SIGCONT)==-1){
                     perror("smash error: kill failed");
                     for(int i=0; i<argNum; i++) free(args[i]);
-                    free(args);
+
                     return;
                 }
                 lastJob->setIsStopped(false);
@@ -556,7 +555,7 @@ public:
                 if(job == nullptr){
                     std::cout << "smash error: fg: job-id " << jobID << " does not exist" << std::endl;
                     for(int i=0; i<argNum; i++) free(args[i]);
-                    free(args);
+
                     return;
                 }
                 else{
@@ -569,7 +568,7 @@ public:
                         if(kill(job->getJobPid(),SIGCONT)==-1){
                             perror("smash error: kill failed");
                             for(int i=0; i<argNum; i++) free(args[i]);
-                            free(args);
+
                             return;
                         }
                         job->setIsStopped(false);
@@ -577,7 +576,7 @@ public:
                     if(waitpid(job->getJobPid(),NULL,0 | WUNTRACED)==-1){
                         perror("smash error: waitpid failed");
                         for(int i=0; i<argNum; i++) free(args[i]);
-                        free(args);
+
                         return;
                     }
                 }
@@ -587,7 +586,7 @@ public:
             std::cout << "smash error: fg: invalid arguments" << std::endl;
         }
         for(int i=0; i<argNum; i++) free(args[i]);
-        free(args);
+
     };
 };
 
@@ -600,21 +599,21 @@ public:
     virtual ~BackgroundCommand() = default;
     void execute() override{
         bool invalidArg=false;
-        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+        char *args[COMMAND_ARGS_MAX_LENGTH];
         int argNum=_parseCommandLine(this->cmd_line,args);
         if(argNum==1){
             JobsList::JobEntry* lastStoppedJob=this->jobsList->getLastStoppedJob();
             if(lastStoppedJob == nullptr){
                 std::cout << "smash error: bg: there is no stopped jobs to resume" << std::endl;
                 for(int i=0; i<argNum; i++) free(args[i]);
-                free(args);
+
                 return;
             }
             std::cout << lastStoppedJob->getCmdLine() << " : " << lastStoppedJob->getJobPid() << std::endl;
             if(kill(lastStoppedJob->getJobPid(),SIGCONT)==-1){
                 perror("smash error: kill failed");
                 for(int i=0; i<argNum; i++) free(args[i]);
-                free(args);
+
                 return;
             }
             lastStoppedJob->setIsStopped(false);
@@ -632,7 +631,7 @@ public:
                 if(stoppedJob == nullptr){
                     std::cout << "smash error: bg: job-id " << jobID << " does not exist" << std::endl;
                     for(int i=0; i<argNum; i++) free(args[i]);
-                    free(args);
+
                     return;
                 }
                 else{
@@ -641,7 +640,7 @@ public:
                         if(kill(stoppedJob->getJobPid(),SIGCONT)==-1){
                             perror("smash error: kill failed");
                             for(int i=0; i<argNum; i++) free(args[i]);
-                            free(args);
+
                             return;
                         }
                     }
@@ -655,7 +654,7 @@ public:
             std::cout << "smash error: bg: invalid arguments" << std::endl;
         }
         for(int i=0; i<argNum; i++) free(args[i]);
-        free(args);
+
     };
 };
 
@@ -667,7 +666,7 @@ public:
     QuitCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line),jobsList(jobsList){};
     virtual ~QuitCommand() = default;
     void execute() override{
-        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+        char *args[COMMAND_ARGS_MAX_LENGTH];
         int argNum=_parseCommandLine(this->cmd_line,args);
         if(argNum>=2 && strcmp(args[1],"kill")==0){
             std::cout << "smash: sending SIGKILL signal to "<<  this->jobsList->getJobsListSize() << " jobs:" << std::endl;
@@ -676,7 +675,7 @@ public:
         for(int i=0; i<argNum; i++){
             free(args[i]);
         }
-        free(args);
+
         SmallShell& smash=SmallShell::getInstance();
         smash.setIsQuit(true);
     };
