@@ -211,6 +211,13 @@ class JobsList {
       Command* getCommand(){
           return this->command;
       }
+      void setIsStopped(bool isStopped){
+          this->isStopped=isStopped;
+      }
+
+      bool getIsStopped(){
+          return this->isStopped;
+      }
 
   };
 
@@ -262,9 +269,26 @@ private:
       }
   };
 
-  void killAllJobs();
-  JobEntry * getLastJob(int* lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
+  void killAllJobs(){
+      for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
+          if(kill(it->getCommand()->getPID(),SIGKILL)==-1) perror("smash error: kill failed");
+      }
+  }
+
+
+  JobEntry* getLastJob(){
+      if(this->jobsList->empty()) return nullptr;
+      return &(this->jobsList->back());
+  };
+
+  JobEntry* getLastStoppedJob(){
+      for(std::list<JobEntry>::iterator it=jobsList->end(); it != jobsList->begin();){
+        --it;
+        if(it->getIsStopped()) return &(*it);
+      }
+      return nullptr;
+  };
+
   // TODO: Add extra methods or modify exisitng ones as needed
 };
 
@@ -290,32 +314,61 @@ private:
   void execute() override{
       char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
       int argNum=_parseCommandLine(this->cmd_line,args);
-      char signal[200];
-      strcpy(signal,args[1]);
-      //int sigNum=stoi(signal);
-      //std::cout << "test stoi: " << sigNum << std::endl;
-
-      for(int i=0; i<argNum; i++){
-          std::cout << "test: " << i << std::endl;
-          free(args[i]);
+      if(argNum!=3){
+          std::cout << "smash error: kill: invalid arguments" << std::endl;
+          for(int i=1; i<argNum; i++) free(args[i]);
+          free(args);
+          return;
       }
-      free(args);
+      int sigNum,jobNum;
+      try{
+          sigNum=abs(stoi(args[1]));
+          jobNum=abs(stoi(args[2]));
+      }
+      catch(const std::invalid_argument&){
+          std::cout << "smash error: kill: invalid arguments" << std::endl;
+          for(int i=1; i<argNum; i++) free(args[i]);
+          free(args);
+          return;
+      }
 
+      JobsList::JobEntry* jobByID=this->jobsList->getJobById(jobNum);
+      if(jobByID == nullptr){
+          std::cout << "smash error: kill: job-id " << jobNum <<" does not exist" << std::endl;
+          for(int i=1; i<argNum; i++) free(args[i]);
+          free(args);
+          return;
+      }
+      int jobPid=jobByID->getCommand()->getPID();
+      if(kill(jobPid,sigNum)==-1) perror("smash error: kill failed");
+
+      else {
+          if(sigNum==SIGSTOP) jobByID->setIsStopped(true);
+          if(sigNum==SIGCONT) jobByID->setIsStopped(false);
+          std::cout << "signal number " << sigNum <<" was sent to pid " << jobPid << std::endl;
+      }
+      for(int i=1; i<argNum; i++) free(args[i]);
+      free(args);
   };
 };
 
-class ForegroundCommand : public BuiltInCommand {
- // TODO: Add your data members
- public:
-  ForegroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~ForegroundCommand() {}
-  void execute() override;
-};
+
+
+
+
+
+
+
+
+
+
+
+
 
 class BackgroundCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  BackgroundCommand(const char* cmd_line, JobsList* jobs);
+  BackgroundCommand(const char* cmd_line, JobsList* jobsList);
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
@@ -399,5 +452,68 @@ public:
         free(cmd);
     };
 };
+
+
+class ForegroundCommand : public BuiltInCommand {
+    // TODO: Add your data members
+private:
+    JobsList* jobsList;
+public:
+    ForegroundCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line),jobsList(jobsList){};
+    virtual ~ForegroundCommand() = default;
+    void execute() override{
+        bool invalidArg=false;
+        char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+        int argNum=_parseCommandLine(this->cmd_line,args);
+        if(argNum==1){
+            JobsList::JobEntry* lastJob=this->jobsList->getLastJob();
+            if(lastJob == nullptr){
+                std::cout << "smash error: fg: jobs list is empty" << std::endl;
+                for(int i=0; i<argNum; i++) free(args[i]);
+                free(args);
+                return;
+            }
+            this->jobsList->removeJobById(lastJob->getJobID());
+            std::cout << lastJob->getCommand()->getCMD() << " : " << lastJob->getCommand()->getPID() << std::endl;
+            SmallShell& smash=SmallShell::getInstance();
+            smash.setForegroundPid(lastJob->getCommand()->getPID());
+            smash.setForegroundCommand(lastJob->getCommand());
+            waitpid(lastJob->getCommand()->getPID(),NULL,0 | WUNTRACED);
+        }
+        if(argNum==2) {
+            int jobID;
+            try{
+                jobID=abs(stoi(args[1]));
+            }
+            catch(const std::invalid_argument&){
+                invalidArg=true;
+            }
+            if(!invalidArg){
+                JobsList::JobEntry* job=this->jobsList->getJobById(jobID);
+                if(job == nullptr){
+                    std::cout << "smash error: fg: job-id " << jobID << " does not exist" << std::endl;
+                    for(int i=0; i<argNum; i++) free(args[i]);
+                    free(args);
+                    return;
+                }
+                else{
+                    this->jobsList->removeJobById(job->getJobID());
+                    std::cout << job->getCommand()->getCMD() << " : " << job->getCommand()->getPID() << std::endl;
+                    SmallShell& smash=SmallShell::getInstance();
+                    smash.setForegroundPid(job->getCommand()->getPID());
+                    smash.setForegroundCommand(job->getCommand());
+                    waitpid(job->getCommand()->getPID(),NULL,0 | WUNTRACED);
+                }
+            }
+        }
+        if((argNum!=1 && argNum!=2) || invalidArg){
+            std::cout << "smash error: fg: invalid arguments" << std::endl;
+        }
+
+        for(int i=0; i<argNum; i++) free(args[i]);
+        free(args);
+    };
+};
+
 
 #endif //SMASH_COMMAND_H_

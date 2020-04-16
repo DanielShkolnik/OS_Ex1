@@ -143,17 +143,19 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
    else if(cmd_s.find("kill")==0) {
      return new KillCommand(cmd_line,this->jobsList);
    }
-   /*
+
    else if(cmd_s.find("fg")==0) {
-     return new ForegroundCommand(cmd_line);
+     return new ForegroundCommand(cmd_line,this->jobsList);
    }
-   else if(cmd_s.find("bg")==0) {
-     return new BackgroundCommand(cmd_line);
-   }
-   else if(cmd_s.find("quit")==0) {
-     return new QuitCommand(cmd_line);
-   }
-   */
+
+    /*
+    else if(cmd_s.find("bg")==0) {
+      return new BackgroundCommand(cmd_line);
+    }
+    else if(cmd_s.find("quit")==0) {
+      return new QuitCommand(cmd_line);
+    }
+    */
 
   else {
     ExternalCommand* cmd= new ExternalCommand(cmd_line);
