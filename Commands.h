@@ -71,7 +71,7 @@ public:
       else if(argNum == 1){
         promptName=defaultPromptName;
       }
-      for(int i=0; i<=argNum; i++) free(args[i]);
+      for(int i=0; i<argNum; i++) free(args[i]);
       free(args);
     }
 };
@@ -130,7 +130,7 @@ public:
       if(chdirError==-1) perror("smash error: chdir failed");
 
       if(firstCD) firstCD=false;
-      for(int i=0; i<=argNum; i++) free(args[i]);
+      for(int i=0; i<argNum; i++) free(args[i]);
       free(args);
   }
 };
@@ -208,7 +208,12 @@ class JobsList {
           if(this->isStopped) std::cout << "(stopped)" << std::endl;
           else std::cout << std::endl;
       }
+      Command* getCommand(){
+          return this->command;
+      }
+
   };
+
  // TODO: Add your data members
 private:
     std::list<JobEntry>* jobsList;
@@ -230,10 +235,34 @@ private:
             it->printJob();
         }
     };
+  void removeFinishedJobs(){
+      for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end();){
+          int commandPid=it->getCommand()->getPID();
+          if(waitpid(commandPid,NULL,WNOHANG)==commandPid){
+              it=this->jobsList->erase(it);
+              if(it==this->jobsList->end()) break;
+          }
+          else {
+              ++it;
+          }
+      }
+  };
+  JobEntry* getJobById(int jobId){
+      for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
+          if(it->getJobID()==jobId) return &(*it);
+      }
+      return nullptr;
+  };
+  void removeJobById(int jobId){
+      for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
+          if(it->getJobID()==jobId){
+              this->jobsList->erase(it);
+              break;
+          }
+      }
+  };
+
   void killAllJobs();
-  void removeFinishedJobs();
-  JobEntry * getJobById(int jobId);
-  void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
   // TODO: Add extra methods or modify exisitng ones as needed
@@ -253,10 +282,26 @@ private:
 
 class KillCommand : public BuiltInCommand {
  // TODO: Add your data members
+private:
+    JobsList* jobsList;
  public:
-  KillCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~KillCommand() {}
-  void execute() override;
+  KillCommand(const char* cmd_line, JobsList* jobsList):BuiltInCommand(cmd_line),jobsList(jobsList){};
+  virtual ~KillCommand() = default;
+  void execute() override{
+      char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
+      int argNum=_parseCommandLine(this->cmd_line,args);
+      char signal[200];
+      strcpy(signal,args[1]);
+      //int sigNum=stoi(signal);
+      //std::cout << "test stoi: " << sigNum << std::endl;
+
+      for(int i=0; i<argNum; i++){
+          std::cout << "test: " << i << std::endl;
+          free(args[i]);
+      }
+      free(args);
+
+  };
 };
 
 class ForegroundCommand : public BuiltInCommand {
@@ -293,6 +338,7 @@ class SmallShell {
   char** plastPwd;
   JobsList* jobsList;
   int foregroundPid;
+  Command* foregroundCommand;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -313,6 +359,15 @@ class SmallShell {
   void setForegroundPid(int foregroundPid){
       this->foregroundPid=foregroundPid;
   }
+  JobsList* getJobsList(){
+      return this->jobsList;
+  }
+  Command* getForegroundCommand(){
+      return this->foregroundCommand;
+  }
+  void setForegroundCommand(Command* foregroundCommand){
+      this->foregroundCommand=foregroundCommand;
+  };
 };
 
 
@@ -333,16 +388,16 @@ public:
             execv(argv[0], argv);
             perror("smash error: execv failed");
         }
-            //Parent:
+        //Parent:
         else{
             this->pid=pid;
             SmallShell& smash=SmallShell::getInstance();
             smash.setForegroundPid(pid);
-            if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0);
+            smash.setForegroundCommand(this);
+            if(!_isBackgroundComamnd(cmd_line)) waitpid(pid,NULL,0 | WUNTRACED);
         }
         free(cmd);
     };
 };
-
 
 #endif //SMASH_COMMAND_H_

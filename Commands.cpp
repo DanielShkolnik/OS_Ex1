@@ -139,20 +139,21 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if(cmd_s.find("jobs")==0) {
     return new JobsCommand(cmd_line,this->jobsList);
   }
-/*
-       else if(cmd_s.find("kill")==0) {
-         return new KillCommand(cmd_line);
-       }
-       else if(cmd_s.find("fg")==0) {
-         return new ForegroundCommand(cmd_line);
-       }
-       else if(cmd_s.find("bg")==0) {
-         return new BackgroundCommand(cmd_line);
-       }
-       else if(cmd_s.find("quit")==0) {
-         return new QuitCommand(cmd_line);
-       }
-       */
+
+   else if(cmd_s.find("kill")==0) {
+     return new KillCommand(cmd_line,this->jobsList);
+   }
+   /*
+   else if(cmd_s.find("fg")==0) {
+     return new ForegroundCommand(cmd_line);
+   }
+   else if(cmd_s.find("bg")==0) {
+     return new BackgroundCommand(cmd_line);
+   }
+   else if(cmd_s.find("quit")==0) {
+     return new QuitCommand(cmd_line);
+   }
+   */
 
   else {
     ExternalCommand* cmd= new ExternalCommand(cmd_line);
@@ -169,6 +170,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
+  this->setForegroundPid(-1);
   Command* cmd = CreateCommand(cmd_line);
   if(cmd!= nullptr) cmd->execute();
 }
