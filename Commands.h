@@ -200,12 +200,10 @@ class JobsList {
    // TODO: Add your data members
   private:
       int jobID;
-      bool isStopped;
       Command* command;
+      bool isStopped;
   public:
-      JobEntry(int jobID, Command* command, bool isStopped):jobID(jobID),isStopped(isStopped){
-          this->command=new Command(command->getCMD());
-      };
+      JobEntry(int jobID, Command* command, bool isStopped):jobID(jobID),command(command),isStopped(isStopped){};
       void setJobID(int jobID){
           this->jobID=jobID;
       }
@@ -434,6 +432,21 @@ class ExternalCommand : public Command {
 public:
     ExternalCommand(const char* cmd_line):Command(cmd_line){};
     virtual ~ExternalCommand() = default;
+    //Copy Constructor
+    ExternalCommand(const ExternalCommand& command){
+        this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
+        strcpy(this->cmd_line, command.cmd_line);
+        this->timeElapsed=command.timeElapsed;
+        this->pid=command.pid;
+    };
+    //Operator= Constructor
+    Command& operator=(const Command& command){
+        this->cmd_line=(char*)malloc(sizeof(char)*(strlen(command.cmd_line)+1));
+        strcpy(this->cmd_line, command.cmd_line);
+        this->timeElapsed=command.timeElapsed;
+        this->pid=command.pid;
+        return *this;
+    };
     void execute() override{
         char* cmd=(char*)malloc(sizeof(char)*COMMAND_ARGS_MAX_LENGTH);
         strcpy(cmd,this->cmd_line);
