@@ -19,13 +19,14 @@ int main(int argc, char* argv[]) {
     //TODO: setup sig alarm handler
 
     SmallShell& smash = SmallShell::getInstance();
-    while(true) {
-        std::cout << promptName; // TODO: change this (why?)
-        std::string cmd_line;
-        std::getline(std::cin, cmd_line);
-        smash.getJobsList()->removeFinishedJobs();
-        smash.executeCommand(cmd_line.c_str());
-        if(smash.getIsQuit()) break;
+    smash.setIsQuit(false);
+
+    while(smash.getIsQuit()== false) {
+    std::cout << promptName; // TODO: change this (why?)
+    std::string cmd_line;
+    std::getline(std::cin, cmd_line);
+    smash.getJobsList()->removeFinishedJobs();
+    smash.executeCommand(cmd_line.c_str());
     }
     return 0;
 }

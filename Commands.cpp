@@ -123,7 +123,16 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   }
   */
   string cmd_s = string(cmd_line);
-  if(cmd_s.find("chprompt")==0) {
+
+  if(cmd_s.find(">")!=string::npos){
+    return new RedirectionCommand(cmd_line);
+  }
+
+  else if(cmd_s.find("|")!=string::npos){
+    return new PipeCommand(cmd_line);
+  }
+
+  else if(cmd_s.find("chprompt")==0) {
     return new ChangePromptCommand(cmd_line);
   }
 
@@ -161,7 +170,6 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 
    else {
      ExternalCommand* cmd= new ExternalCommand(cmd_line);
-     //if(_isBackgroundComamnd(cmd_line)) this->jobsList->addJob(cmd);
      return cmd;
    }
 
@@ -178,3 +186,5 @@ void SmallShell::executeCommand(const char *cmd_line) {
   Command* cmd = CreateCommand(cmd_line);
   if(cmd!= nullptr) cmd->execute();
 }
+
+
