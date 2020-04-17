@@ -701,17 +701,22 @@ public:
             isBackground=true;
         }
         SmallShell& smash=SmallShell::getInstance();
+
         pid_t pidChildren=fork();
-        if(pid==-1) perror("smash error: fork failed");
+        if(pidChildren==-1) perror("smash error: fork failed");
+        pid_t pidChild2;
         //Children:
         if(pidChildren==0){
 
+            setpgrp();
             int fd[2];
             pipe(fd);
             pid_t pidChild1=fork();
+            if(pidChild1==-1) perror("smash error: fork failed");
 
             //Child1:
             if(pidChild1==0){
+                setpgrp();
                 dup2(fd[1],1);
                 close(fd[0]);
                 close(fd[1]);
@@ -720,16 +725,14 @@ public:
                 exit(0);
             }
             //Parent1:
-            else
-            {
-                this->command1Pid=pidChild1;
-                waitpid(pidChild1,NULL,0 | WUNTRACED);
-            }
+            this->command1Pid=pidChild1;
 
-            pid_t pidChild2=fork();
+            pidChild2=fork();
+            if(pidChild2==-1) perror("smash error: fork failed");
 
             //Child2:
             if(pidChild2==0){
+                setpgrp();
                 dup2(fd[0],0);
                 close(fd[0]);
                 close(fd[1]);
@@ -738,20 +741,22 @@ public:
                 exit(0);
             }
             //Parent2:
-            else
-            {
-                this->command1Pid=pidChild2;
-                waitpid(pidChild2,NULL,0 | WUNTRACED);
-            }
-
+            this->command2Pid=pidChild2;
+            if(pidChild1==pidChild2) std::cout << "fail" << std::endl;
+            waitpid(pidChild1,NULL,0);
+            waitpid(pidChild2,NULL,0);
+            close(fd[0]);
+            close(fd[1]);
+            exit(0);
         }
         //Grandparent:
         else{
-            this->pid=pid;
+            this->pid=pidChildren;
             if(!isBackground){
                 smash.setForegroundPid(pid);
                 smash.setForegroundCmdLine(this->cmd_line);
                 waitpid(pid,NULL,0 | WUNTRACED);
+                std::cout << "test Grandparent wait" << std::endl;
             }
             else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
 
@@ -800,8 +805,8 @@ public:
         if(pid==0){
             setpgrp();
             if(close(1)==-1) perror("smash error: close failed");
-            if(isAppend) open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,S_IRWXU);
-            else open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,S_IRWXU);
+            if(isAppend) open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,666);
+            else open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,666);
             SmallShell& smash=SmallShell::getInstance();
             Command* cmd=smash.CreateCommand(commandCmdCStr);
             if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is: " << getppid() << endl;
