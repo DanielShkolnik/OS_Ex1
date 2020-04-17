@@ -707,7 +707,6 @@ public:
         pid_t pidChild2;
         //Children:
         if(pidChildren==0){
-
             setpgrp();
             int fd[2];
             pipe(fd);
@@ -726,6 +725,7 @@ public:
             }
             //Parent1:
             this->command1Pid=pidChild1;
+            waitpid(pidChild1,NULL,0);
 
             pidChild2=fork();
             if(pidChild2==-1) perror("smash error: fork failed");
@@ -741,12 +741,12 @@ public:
                 exit(0);
             }
             //Parent2:
-            this->command2Pid=pidChild2;
-            if(pidChild1==pidChild2) std::cout << "fail" << std::endl;
-            waitpid(pidChild1,NULL,0);
-            waitpid(pidChild2,NULL,0);
             close(fd[0]);
             close(fd[1]);
+            this->command2Pid=pidChild2;
+            if(pidChild1==pidChild2) std::cout << "fail" << std::endl;
+
+            waitpid(pidChild2,NULL,0);
             exit(0);
         }
         //Grandparent:
@@ -755,8 +755,7 @@ public:
             if(!isBackground){
                 smash.setForegroundPid(pid);
                 smash.setForegroundCmdLine(this->cmd_line);
-                waitpid(pid,NULL,0 | WUNTRACED);
-                std::cout << "test Grandparent wait" << std::endl;
+                waitpid(pid,NULL,WUNTRACED);
             }
             else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
 
