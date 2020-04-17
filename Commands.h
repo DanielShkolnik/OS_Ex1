@@ -8,8 +8,6 @@
 #include <list>
 #include <sys/wait.h>
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 
 
@@ -372,6 +370,12 @@ private:
           for(int i=0; i<argNum; i++) free(args[i]);
           return;
       }
+      string sigNumStr=args[1];
+      if(sigNum<1 || sigNum>31 || sigNumStr.find("-")!=0){
+          std::cout << "smash error: kill: invalid arguments" << std::endl;
+          for(int i=0; i<argNum; i++) free(args[i]);
+          return;
+      }
 
       JobsList::JobEntry* jobByID=this->jobsList->getJobById(jobNum);
       if(jobByID == nullptr){
@@ -401,6 +405,7 @@ private:
     int foregroundPid;
     char* foregroundCmdLine;
     bool isQuit;
+    bool isPipeCommand;
     SmallShell();
 public:
     Command *CreateCommand(const char* cmd_line);
@@ -437,6 +442,9 @@ public:
     }
     bool getIsQuit(){
         return this->isQuit;
+    }
+    bool getIsPipeCommand(){
+        return this->isPipeCommand;
     }
 };
 
@@ -701,6 +709,7 @@ public:
             isBackground=true;
         }
         SmallShell& smash=SmallShell::getInstance();
+        pid_t smashPid=getpid();
 
         pid_t pidChildren=fork();
         if(pidChildren==-1) perror("smash error: fork failed");
@@ -720,7 +729,8 @@ public:
                 close(fd[0]);
                 close(fd[1]);
                 Command* cmd1=smash.CreateCommand(command1CmdCStr);
-                cmd1->execute();
+                if(strcmp(argsCommand1[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
+                else cmd1->execute();
                 exit(0);
             }
             //Parent1:
@@ -736,14 +746,14 @@ public:
                 close(fd[0]);
                 close(fd[1]);
                 Command* cmd2=smash.CreateCommand(command2CmdCStr);
-                cmd2->execute();
+                if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
+                else cmd2->execute();
                 exit(0);
             }
             //Parent2:
             close(fd[0]);
             close(fd[1]);
             this->command2Pid=pidChild2;
-            if(pidChild1==pidChild2) std::cout << "fail" << std::endl;
             waitpid(pidChild1,NULL,0);
             waitpid(pidChild2,NULL,0);
             exit(0);
@@ -756,8 +766,10 @@ public:
                 smash.setForegroundCmdLine(this->cmd_line);
                 waitpid(pid,NULL,WUNTRACED);
             }
-            else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
-
+            else{
+                smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
+                sleep(1);
+            }
         }
 
         for(int i=0; i<argsNumCommand1; i++) free(argsCommand1[i]);

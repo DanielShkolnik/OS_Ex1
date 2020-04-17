@@ -96,6 +96,7 @@ SmallShell::SmallShell() {
   this->jobsList= new JobsList;
   this->isQuit=false;
   this->foregroundCmdLine= nullptr;
+  this->isPipeCommand=false;
 }
 
 SmallShell::~SmallShell() {
@@ -123,12 +124,14 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   }
   */
   string cmd_s = string(cmd_line);
+  this->isPipeCommand=false;
 
   if(cmd_s.find(">")!=string::npos){
     return new RedirectionCommand(cmd_line);
   }
 
   else if(cmd_s.find("|")!=string::npos){
+    this->isPipeCommand=true;
     return new PipeCommand(cmd_line);
   }
 

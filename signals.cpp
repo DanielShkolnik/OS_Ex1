@@ -9,10 +9,16 @@ void ctrlZHandler(int sig_num) {
     std::cout << "smash: got ctrl-Z" << std::endl;
     SmallShell& smash=SmallShell::getInstance();
     if(smash.getForegroundPid()!=-1){
-        kill(smash.getForegroundPid(),SIGSTOP);
-        smash.getJobsList()->addJob(smash.getForegroundPid(),smash.getForegroundCmdLine(),true);
-        std::cout << "smash: process " << smash.getForegroundPid() << " was stopped" << std::endl;
-        smash.setForegroundPid(-1);
+        if(smash.getIsPipeCommand()){
+            kill(smash.getForegroundPid(),SIGSTOP);
+            kill(smash.getForegroundPid(),SIGSTOP)
+        }
+        else{
+            kill(smash.getForegroundPid(),SIGSTOP);
+            smash.getJobsList()->addJob(smash.getForegroundPid(),smash.getForegroundCmdLine(),true);
+            std::cout << "smash: process " << smash.getForegroundPid() << " was stopped" << std::endl;
+            smash.setForegroundPid(-1);
+        }
     }
 }
 
