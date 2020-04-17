@@ -725,7 +725,6 @@ public:
             }
             //Parent1:
             this->command1Pid=pidChild1;
-            waitpid(pidChild1,NULL,0);
 
             pidChild2=fork();
             if(pidChild2==-1) perror("smash error: fork failed");
@@ -745,7 +744,7 @@ public:
             close(fd[1]);
             this->command2Pid=pidChild2;
             if(pidChild1==pidChild2) std::cout << "fail" << std::endl;
-
+            waitpid(pidChild1,NULL,0);
             waitpid(pidChild2,NULL,0);
             exit(0);
         }
