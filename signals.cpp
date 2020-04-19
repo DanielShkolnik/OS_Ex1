@@ -9,6 +9,7 @@ void ctrlZHandler(int sig_num) {
     std::cout << "smash: got ctrl-Z" << std::endl;
     SmallShell& smash=SmallShell::getInstance();
     if(smash.getForegroundPid()!=-1){
+        std::cout << "IsPipeCommand: " << smash.getIsPipeCommand() << std::endl;
         if(smash.getIsPipeCommand()){
             std::cout << "PipeCommand1: " << smash.getPipeCommand1() << std::endl;
             std::cout << "PipeCommand2: " << smash.getPipeCommand2() << std::endl;
