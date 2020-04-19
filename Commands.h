@@ -198,13 +198,11 @@ class JobsList {
       int jobPid;
       char* cmd_line;
       bool isPipeCommand;
-      int pipeCommand1Pid;
-      int pipeCommand2Pid;
 
   public:
       JobEntry(int jobID, bool isStopped, time_t timeElapsed, int jobPid,char* cmd_line,bool isPipeCommand=false ,int pipeCommand1Pid=-1,
                int pipeCommand2Pid=-1):jobID(jobID),isStopped(isStopped),timeElapsed(timeElapsed),
-              jobPid(jobPid),isPipeCommand(isPipeCommand),pipeCommand1Pid(pipeCommand1Pid),pipeCommand2Pid(pipeCommand2Pid){
+              jobPid(jobPid),isPipeCommand(isPipeCommand){
           this->cmd_line=(char*)malloc(sizeof(char)*(strlen(cmd_line)+1));
           strcpy(this->cmd_line,cmd_line);
       };
@@ -218,8 +216,6 @@ class JobsList {
           this->timeElapsed=jobEntry.timeElapsed;
           this->jobPid=jobEntry.jobPid;
           this->isPipeCommand=jobEntry.isPipeCommand;
-          this->pipeCommand1Pid=jobEntry.pipeCommand1Pid;
-          this->pipeCommand2Pid=jobEntry.pipeCommand2Pid;
           this->cmd_line=(char*)malloc(sizeof(char)*(strlen(jobEntry.cmd_line)+1));
           strcpy(this->cmd_line,jobEntry.cmd_line);
       };
@@ -230,8 +226,6 @@ class JobsList {
           this->timeElapsed=jobEntry.timeElapsed;
           this->jobPid=jobEntry.jobPid;
           this->isPipeCommand=jobEntry.isPipeCommand;
-          this->pipeCommand1Pid=jobEntry.pipeCommand1Pid;
-          this->pipeCommand2Pid=jobEntry.pipeCommand2Pid;
           this->cmd_line=(char*)malloc(sizeof(char)*(strlen(jobEntry.cmd_line)+1));
           strcpy(this->cmd_line,jobEntry.cmd_line);
           return *this;
@@ -266,12 +260,6 @@ class JobsList {
       bool getIsPipeCommand(){
           return this->isPipeCommand;
       }
-      int getPipeCommand1Pid(){
-          return this->pipeCommand1Pid;
-      }
-      int getPipeCommand2Pid(){
-          return this->pipeCommand2Pid;
-      }
 
   };
 
@@ -283,13 +271,13 @@ private:
     ~JobsList(){
         delete jobsList;
     };
-    void addJob(int jobPid, char* cmd_line, bool isStopped = false, bool isPipeCommand=false, int pipeCommand1Pid=-1, int pipeCommand2Pid=-1){
+    void addJob(int jobPid, char* cmd_line, bool isStopped = false, bool isPipeCommand=false){
         int jobID;
         if(this->jobsList->empty()) jobID=1;
         else {
             jobID=this->jobsList->back().getJobID()+1;
         }
-        if(isPipeCommand) this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line,isPipeCommand,pipeCommand1Pid,pipeCommand2Pid));
+        if(isPipeCommand) this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line,isPipeCommand));
         else this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line));
 
     };
@@ -330,9 +318,7 @@ private:
       for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
           std::cout << it->getJobPid() << ": " << it->getCmdLine() << std::endl;
           if(it->getIsPipeCommand()){
-              if(kill(it->getJobPid(),SIGKILL)==-1) perror("smash error: kill failed");
-              if(kill(it->getPipeCommand1Pid(),SIGKILL)==-1) perror("smash error: kill failed");
-              if(kill(it->getPipeCommand2Pid(),SIGKILL)==-1) perror("smash error: kill failed");
+              if(kill(-(it->getJobPid()),SIGKILL)==-1) perror("smash error: kill failed");
           }
           else if(kill(it->getJobPid(),SIGKILL)==-1) perror("smash error: kill failed");
       }
@@ -411,17 +397,16 @@ private:
           return;
       }
       int jobPid=jobByID->getJobPid();
-      if(kill(jobPid,sigNum)==-1) perror("smash error: kill failed");
-      if(jobByID->getIsPipeCommand()){
-          if(kill(jobByID->getPipeCommand1Pid(),sigNum)==-1) perror("smash error: kill failed");
-          if(kill(jobByID->getPipeCommand2Pid(),sigNum)==-1) perror("smash error: kill failed");
+      if(jobByID->getIsPipeCommand()) {
+          if (kill(-jobPid, sigNum) == -1) perror("smash error: kill failed");
+      }
+      else {
+          if (kill(jobPid, sigNum) == -1) perror("smash error: kill failed");
       }
 
-      else {
-          if(sigNum==SIGSTOP) jobByID->setIsStopped(true);
-          if(sigNum==SIGCONT) jobByID->setIsStopped(false);
-          std::cout << "signal number " << sigNum <<" was sent to pid " << jobPid << std::endl;
-      }
+      if(sigNum==SIGSTOP) jobByID->setIsStopped(true);
+      if(sigNum==SIGCONT) jobByID->setIsStopped(false);
+      std::cout << "signal number " << sigNum <<" was sent to pid " << jobPid << std::endl;
 
       for(int i=0; i<argNum; i++) free(args[i]);
   };
@@ -437,8 +422,6 @@ private:
     char* foregroundCmdLine;
     bool isQuit;
     bool isPipeCommand;
-    int pipeCommand1;
-    int pipeCommand2;
     SmallShell();
 public:
     Command *CreateCommand(const char* cmd_line);
@@ -482,18 +465,6 @@ public:
     void setIsPipeCommand(bool isPipeCommand){
         this->isPipeCommand=isPipeCommand;
     }
-    void setPipeCommand1(int pipeCommand1){
-        this->pipeCommand1=pipeCommand1;
-    };
-    void setPipeCommand2(int pipeCommand2){
-        this->pipeCommand2=pipeCommand2;
-    };
-    int getPipeCommand1(){
-        return this->pipeCommand1;
-    };
-    int getPipeCommand2(){
-        return this->pipeCommand2;
-    };
 
 };
 
@@ -579,24 +550,21 @@ public:
             smash.setForegroundPid(lastJob->getJobPid());
             smash.setForegroundCmdLine(lastJob->getCmdLine());
             if(lastJob->getIsStopped()){
-                if(kill(lastJob->getJobPid(),SIGCONT)==-1){
-                    perror("smash error: kill failed");
-                    for(int i=0; i<argNum; i++) free(args[i]);
-                    return;
+                if(lastJob->getIsPipeCommand()){
+                    if(kill(-(lastJob->getJobPid()),SIGCONT)==-1){
+                        perror("smash error: kill failed");
+                        for(int i=0; i<argNum; i++) free(args[i]);
+                        return;
+                    }
+                }
+                else{
+                    if(kill(lastJob->getJobPid(),SIGCONT)==-1){
+                        perror("smash error: kill failed");
+                        for(int i=0; i<argNum; i++) free(args[i]);
+                        return;
+                    }
                 }
                 lastJob->setIsStopped(false);
-                if(lastJob->getIsPipeCommand()){
-                    if(kill(lastJob->getPipeCommand1Pid(),SIGCONT)==-1){
-                        perror("smash error: kill failed");
-                        for(int i=0; i<argNum; i++) free(args[i]);
-                        return;
-                    }
-                    if(kill(lastJob->getPipeCommand2Pid(),SIGCONT)==-1){
-                        perror("smash error: kill failed");
-                        for(int i=0; i<argNum; i++) free(args[i]);
-                        return;
-                    }
-                }
             }
             waitpid(lastJob->getJobPid(),NULL,0 | WUNTRACED);
         }
@@ -622,24 +590,21 @@ public:
                     smash.setForegroundPid(job->getJobPid());
                     smash.setForegroundCmdLine(job->getCmdLine());
                     if(job->getIsStopped()){
-                        if(kill(job->getJobPid(),SIGCONT)==-1){
-                            perror("smash error: kill failed");
-                            for(int i=0; i<argNum; i++) free(args[i]);
-                            return;
+                        if(job->getIsPipeCommand()){
+                            if(kill(-(job->getJobPid()),SIGCONT)==-1){
+                                perror("smash error: kill failed");
+                                for(int i=0; i<argNum; i++) free(args[i]);
+                                return;
+                            }
+                        }
+                        else{
+                            if(kill(job->getJobPid(),SIGCONT)==-1){
+                                perror("smash error: kill failed");
+                                for(int i=0; i<argNum; i++) free(args[i]);
+                                return;
+                            }
                         }
                         job->setIsStopped(false);
-                        if(job->getIsPipeCommand()){
-                            if(kill(job->getPipeCommand1Pid(),SIGCONT)==-1){
-                                perror("smash error: kill failed");
-                                for(int i=0; i<argNum; i++) free(args[i]);
-                                return;
-                            }
-                            if(kill(job->getPipeCommand2Pid(),SIGCONT)==-1){
-                                perror("smash error: kill failed");
-                                for(int i=0; i<argNum; i++) free(args[i]);
-                                return;
-                            }
-                        }
                     }
                     if(waitpid(job->getJobPid(),NULL,0 | WUNTRACED)==-1){
                         perror("smash error: waitpid failed");
@@ -676,24 +641,22 @@ public:
                 return;
             }
             std::cout << lastStoppedJob->getCmdLine() << " : " << lastStoppedJob->getJobPid() << std::endl;
-            if(kill(lastStoppedJob->getJobPid(),SIGCONT)==-1){
-                perror("smash error: kill failed");
-                for(int i=0; i<argNum; i++) free(args[i]);
-                return;
+
+            if(lastStoppedJob->getIsPipeCommand()){
+                if(kill(-(lastStoppedJob->getJobPid()),SIGCONT)==-1){
+                    perror("smash error: kill failed");
+                    for(int i=0; i<argNum; i++) free(args[i]);
+                    return;
+                }
+            }
+            else{
+                if(kill(lastStoppedJob->getJobPid(),SIGCONT)==-1){
+                    perror("smash error: kill failed");
+                    for(int i=0; i<argNum; i++) free(args[i]);
+                    return;
+                }
             }
             lastStoppedJob->setIsStopped(false);
-            if(lastStoppedJob->getIsPipeCommand()){
-                if(kill(lastStoppedJob->getPipeCommand1Pid(),SIGCONT)==-1){
-                    perror("smash error: kill failed");
-                    for(int i=0; i<argNum; i++) free(args[i]);
-                    return;
-                }
-                if(kill(lastStoppedJob->getPipeCommand2Pid(),SIGCONT)==-1){
-                    perror("smash error: kill failed");
-                    for(int i=0; i<argNum; i++) free(args[i]);
-                    return;
-                }
-            }
         }
         if(argNum==2) {
             int jobID;
@@ -714,18 +677,15 @@ public:
                 else{
                     if(stoppedJob->getIsStopped()){
                         std::cout << stoppedJob->getCmdLine() << " : " << stoppedJob->getJobPid() << std::endl;
-                        if(kill(stoppedJob->getJobPid(),SIGCONT)==-1){
-                            perror("smash error: kill failed");
-                            for(int i=0; i<argNum; i++) free(args[i]);
-                            return;
-                        }
                         if(stoppedJob->getIsPipeCommand()){
-                            if(kill(stoppedJob->getPipeCommand1Pid(),SIGCONT)==-1){
+                            if(kill(-(stoppedJob->getJobPid()),SIGCONT)==-1){
                                 perror("smash error: kill failed");
                                 for(int i=0; i<argNum; i++) free(args[i]);
                                 return;
                             }
-                            if(kill(stoppedJob->getPipeCommand2Pid(),SIGCONT)==-1){
+                        }
+                        else{
+                            if(kill(stoppedJob->getJobPid(),SIGCONT)==-1){
                                 perror("smash error: kill failed");
                                 for(int i=0; i<argNum; i++) free(args[i]);
                                 return;
@@ -772,9 +732,6 @@ public:
 
 class PipeCommand : public Command {
     // TODO: Add your data members
-private:
-    pid_t command1Pid;
-    pid_t command2Pid;
 public:
     PipeCommand(const char* cmd_line):Command(cmd_line){};
     virtual ~PipeCommand() = default;
@@ -805,6 +762,11 @@ public:
         SmallShell& smash=SmallShell::getInstance();
         pid_t smashPid=getpid();
 
+
+        int* test=(int*)malloc(sizeof(int)*1);
+        *test=10;
+
+
         pid_t pidChildren=fork();
         if(pidChildren==-1) perror("smash error: fork failed");
         //Children:
@@ -817,40 +779,28 @@ public:
 
             //Child1:
             if(pidChild1==0){
-                setpgrp();
                 dup2(fd[1],1);
                 close(fd[0]);
                 close(fd[1]);
                 Command* cmd1=smash.CreateCommand(command1CmdCStr);
-                smash.setIsPipeCommand(true);
                 if(strcmp(argsCommand1[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
                 else cmd1->execute();
                 exit(0);
             }
-            //Parent1:
-            this->command1Pid=pidChild1;
-            smash.setPipeCommand1(pidChild1);
-            std::cout  << "PipeCommand1: " << pidChild1 << std::endl;
-
+            //Parent:
             pid_t pidChild2=fork();
             if(pidChild2==-1) perror("smash error: fork failed");
             //Child2:
             if(pidChild2==0){
-                setpgrp();
                 dup2(fd[0],0);
                 close(fd[0]);
                 close(fd[1]);
                 Command* cmd2=smash.CreateCommand(command2CmdCStr);
-                smash.setIsPipeCommand(true);
                 if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
                 else cmd2->execute();
                 exit(0);
             }
-            //Parent2:
-            smash.setPipeCommand2(pidChild2);
-            std::cout << "PipeCommand2: " << pidChild2 << std::endl;
-            this->command2Pid=pidChild2;
-            smash.setPipeCommand2(pidChild2);
+            //Parent:
             close(fd[0]);
             close(fd[1]);
             waitpid(pidChild1,NULL,0 | WUNTRACED);
@@ -866,10 +816,8 @@ public:
                 waitpid(pid,NULL,WUNTRACED);
             }
             else{
+                smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
                 sleep(1);
-                std::cout << "addjob pidChild1:" << this->command1Pid << std::endl;
-                std::cout << "addjob pidChild2:" << this->command2Pid << std::endl;
-                smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true,this->command1Pid,this->command2Pid);
             }
         }
 
