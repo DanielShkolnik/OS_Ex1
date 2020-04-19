@@ -103,12 +103,12 @@ public:
       char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
       int argNum=_parseCommandLine(this->cmd_line,args);
       if(argNum>2){
-          std::cout << "smash error: cd: too many arguments" << endl;
+          std::cerr << "smash error: cd: too many arguments" << endl;
           return;
       }
       if(argNum==1) return;
       if(strcmp(args[1],"-")==0){
-          if(firstCD) std::cout << "smash error: cd: OLDPWD not set" << endl;
+          if(firstCD) std::cerr << "smash error: cd: OLDPWD not set" << endl;
           else {
               char* temp=get_current_dir_name();
               int chdirError=chdir( *plastPwd);
@@ -369,7 +369,7 @@ private:
       //char** args=(char**)malloc(sizeof(char)*COMMAND_MAX_ARGS);
       int argNum=_parseCommandLine(this->cmd_line,args);
       if(argNum!=3){
-          std::cout << "smash error: kill: invalid arguments" << std::endl;
+          std::cerr << "smash error: kill: invalid arguments" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
           return;
       }
@@ -379,20 +379,20 @@ private:
           jobNum=abs(stoi(args[2]));
       }
       catch(const std::invalid_argument&){
-          std::cout << "smash error: kill: invalid arguments" << std::endl;
+          std::cerr << "smash error: kill: invalid arguments" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
           return;
       }
       string sigNumStr=args[1];
       if(sigNum<1 || sigNum>31 || sigNumStr.find("-")!=0){
-          std::cout << "smash error: kill: invalid arguments" << std::endl;
+          std::cerr << "smash error: kill: invalid arguments" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
           return;
       }
 
       JobsList::JobEntry* jobByID=this->jobsList->getJobById(jobNum);
       if(jobByID == nullptr){
-          std::cout << "smash error: kill: job-id " << jobNum <<" does not exist" << std::endl;
+          std::cerr << "smash error: kill: job-id " << jobNum <<" does not exist" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
           return;
       }
@@ -540,7 +540,7 @@ public:
         if(argNum==1){
             JobsList::JobEntry* lastJob=this->jobsList->getLastJob();
             if(lastJob == nullptr){
-                std::cout << "smash error: fg: jobs list is empty" << std::endl;
+                std::cerr << "smash error: fg: jobs list is empty" << std::endl;
                 for(int i=0; i<argNum; i++) free(args[i]);
                 return;
             }
@@ -579,7 +579,7 @@ public:
             if(!invalidArg){
                 JobsList::JobEntry* job=this->jobsList->getJobById(jobID);
                 if(job == nullptr){
-                    std::cout << "smash error: fg: job-id " << jobID << " does not exist" << std::endl;
+                    std::cerr << "smash error: fg: job-id " << jobID << " does not exist" << std::endl;
                     for(int i=0; i<argNum; i++) free(args[i]);
                     return;
                 }
@@ -615,7 +615,7 @@ public:
             }
         }
         if((argNum!=1 && argNum!=2) || invalidArg){
-            std::cout << "smash error: fg: invalid arguments" << std::endl;
+            std::cerr << "smash error: fg: invalid arguments" << std::endl;
         }
         for(int i=0; i<argNum; i++) free(args[i]);
 
@@ -636,7 +636,7 @@ public:
         if(argNum==1){
             JobsList::JobEntry* lastStoppedJob=this->jobsList->getLastStoppedJob();
             if(lastStoppedJob == nullptr){
-                std::cout << "smash error: bg: there is no stopped jobs to resume" << std::endl;
+                std::cerr << "smash error: bg: there is no stopped jobs to resume" << std::endl;
                 for(int i=0; i<argNum; i++) free(args[i]);
                 return;
             }
@@ -669,7 +669,7 @@ public:
             if(!invalidArg){
                 JobsList::JobEntry* stoppedJob=this->jobsList->getJobById(jobID);
                 if(stoppedJob == nullptr){
-                    std::cout << "smash error: bg: job-id " << jobID << " does not exist" << std::endl;
+                    std::cerr << "smash error: bg: job-id " << jobID << " does not exist" << std::endl;
                     for(int i=0; i<argNum; i++) free(args[i]);
 
                     return;
@@ -693,13 +693,13 @@ public:
                         }
                     }
                     else{
-                        std::cout << "smash error: bg: job-id "<< stoppedJob->getJobPid() <<" is already running in the background" << std::endl;
+                        std::cerr << "smash error: bg: job-id "<< stoppedJob->getJobPid() <<" is already running in the background" << std::endl;
                     }
                 }
             }
         }
         if((argNum!=1 && argNum!=2) || invalidArg){
-            std::cout << "smash error: bg: invalid arguments" << std::endl;
+            std::cerr << "smash error: bg: invalid arguments" << std::endl;
         }
         for(int i=0; i<argNum; i++) free(args[i]);
 
@@ -716,7 +716,11 @@ public:
     void execute() override{
         char *args[COMMAND_ARGS_MAX_LENGTH];
         int argNum=_parseCommandLine(this->cmd_line,args);
-        if(argNum>=2 && strcmp(args[1],"kill")==0){
+        bool isKill=false;
+        for(int i=1; i<argNum; i++){
+            if(strcmp(args[i],"kill")==0) isKill=true;
+        }
+        if(argNum>=2 && isKill){
             std::cout << "smash: sending SIGKILL signal to "<<  this->jobsList->getJobsListSize() << " jobs:" << std::endl;
             this->jobsList->killAllJobs();
         }
@@ -762,10 +766,8 @@ public:
         SmallShell& smash=SmallShell::getInstance();
         pid_t smashPid=getpid();
 
-
-        int* test=(int*)malloc(sizeof(int)*1);
-        *test=10;
-
+        //Check if |& Command
+        if(cmd_s.find("|&")!=string::npos) isStdError=true;
 
         pid_t pidChildren=fork();
         if(pidChildren==-1) perror("smash error: fork failed");
@@ -779,13 +781,16 @@ public:
 
             //Child1:
             if(pidChild1==0){
-                dup2(fd[1],1);
+                if(isStdError)dup2(fd[1],2);
+                else dup2(fd[1],1);
                 close(fd[0]);
                 close(fd[1]);
                 Command* cmd1=smash.CreateCommand(command1CmdCStr);
                 if(strcmp(argsCommand1[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
                 else cmd1->execute();
-                exit(0);
+                smash.setIsQuit(true);
+                return;
+                //exit(0);
             }
             //Parent:
             pid_t pidChild2=fork();
@@ -798,14 +803,18 @@ public:
                 Command* cmd2=smash.CreateCommand(command2CmdCStr);
                 if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
                 else cmd2->execute();
-                exit(0);
+                smash.setIsQuit(true);
+                return;
+                //exit(0);
             }
             //Parent:
             close(fd[0]);
             close(fd[1]);
-            waitpid(pidChild1,NULL,0 | WUNTRACED);
-            waitpid(pidChild2,NULL,0 | WUNTRACED);
-            exit(0);
+            waitpid(pidChild1,NULL,0);
+            waitpid(pidChild2,NULL,0);
+            smash.setIsQuit(true);
+            return;
+            //exit(0);
         }
         //Grandparent:
         else{
@@ -870,7 +879,9 @@ public:
             Command* cmd=smash.CreateCommand(commandCmdCStr);
             if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is: " << getppid() << endl;
             else cmd->execute();
-            exit(0);
+            smash.setIsQuit(true);
+            return;
+            //exit(0);
         }
         //Parent:
         else{
