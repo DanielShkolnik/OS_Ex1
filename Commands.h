@@ -804,7 +804,6 @@ public:
         }
         SmallShell& smash=SmallShell::getInstance();
         pid_t smashPid=getpid();
-        pid_t pidChild1=-1,pidChild2=-1;
 
         pid_t pidChildren=fork();
         if(pidChildren==-1) perror("smash error: fork failed");
@@ -829,37 +828,34 @@ public:
                 exit(0);
             }
             //Parent1:
-            else{
-                this->command1Pid=pidChild1;
-                smash.setPipeCommand1(pidChild1);
-                std::cout  << "PipeCommand1: " << pidChild1 << std::endl;
-                pidChild2=fork();
-                if(pidChild2==-1) perror("smash error: fork failed");
-                //Child2:
-                if(pidChild2==0){
-                    setpgrp();
-                    dup2(fd[0],0);
-                    close(fd[0]);
-                    close(fd[1]);
-                    Command* cmd2=smash.CreateCommand(command2CmdCStr);
-                    smash.setIsPipeCommand(true);
-                    if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
-                    else cmd2->execute();
-                    exit(0);
-                }
-                else{
-                    smash.setPipeCommand2(pidChild2);
-                    std::cout << "PipeCommand2: " << pidChild2 << std::endl;
-                    this->command2Pid=pidChild2;
-                    smash.setPipeCommand2(pidChild2);
-                }
-                //Parent2:
+            this->command1Pid=pidChild1;
+            smash.setPipeCommand1(pidChild1);
+            std::cout  << "PipeCommand1: " << pidChild1 << std::endl;
+
+            pid_t pidChild2=fork();
+            if(pidChild2==-1) perror("smash error: fork failed");
+            //Child2:
+            if(pidChild2==0){
+                setpgrp();
+                dup2(fd[0],0);
                 close(fd[0]);
                 close(fd[1]);
-                waitpid(pidChild1,NULL,0 | WUNTRACED);
-                waitpid(pidChild2,NULL,0 | WUNTRACED);
+                Command* cmd2=smash.CreateCommand(command2CmdCStr);
+                smash.setIsPipeCommand(true);
+                if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
+                else cmd2->execute();
                 exit(0);
             }
+            //Parent2:
+            smash.setPipeCommand2(pidChild2);
+            std::cout << "PipeCommand2: " << pidChild2 << std::endl;
+            this->command2Pid=pidChild2;
+            smash.setPipeCommand2(pidChild2);
+            close(fd[0]);
+            close(fd[1]);
+            waitpid(pidChild1,NULL,0 | WUNTRACED);
+            waitpid(pidChild2,NULL,0 | WUNTRACED);
+            exit(0);
         }
         //Grandparent:
         else{
