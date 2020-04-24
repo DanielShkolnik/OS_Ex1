@@ -440,7 +440,7 @@ private:
     int foregroundJobID;
     SmallShell();
 public:
-    Command *CreateCommand(const char* cmd_line);
+    Command *CreateCommand(const char* cmd_line, bool isPipe=false);
     SmallShell(SmallShell const&)      = delete; // disable copy ctor
     void operator=(SmallShell const&)  = delete; // disable = operator
     static SmallShell& getInstance() // make SmallShell singleton
@@ -494,8 +494,10 @@ public:
 
 
 class ExternalCommand : public Command {
+private:
+    bool isPipe;
 public:
-    ExternalCommand(const char* cmd_line):Command(cmd_line){};
+    ExternalCommand(const char* cmd_line, bool isPipe=false):Command(cmd_line),isPipe(isPipe){};
     virtual ~ExternalCommand() = default;
 
     //Copy Constructor
@@ -511,7 +513,8 @@ public:
         if(pid==-1) perror("smash error: fork failed");
         //Child:
         if(pid==0){
-            setpgrp();
+            if(!(this->isPipe)) setpgrp();
+            std::cerr << "EXCommand getpgid: " << getpgid(getpid()) << std::endl;
             char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
             execv(argv[0], argv);
             perror("smash error: execv failed");
@@ -538,8 +541,10 @@ public:
 
 // TODO: should it really inhirit from BuiltInCommand ?
 class CopyCommand : public BuiltInCommand {
+private:
+    bool isPipe;
 public:
-    CopyCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {};
+    CopyCommand(const char *cmd_line, bool isPipe=false):BuiltInCommand(cmd_line),isPipe(isPipe){};
 
     virtual ~CopyCommand() = default;
 
@@ -561,8 +566,7 @@ public:
         if (pid == -1) perror("smash error: fork failed");
         //Child:
         if (pid == 0) {
-            setpgrp();
-
+            if(!(this->isPipe)) setpgrp();
             char buffer[1024];
             int files[2];
             ssize_t count;
@@ -650,8 +654,15 @@ public:
             smash.setForegroundCmdLine(lastJob->getCmdLine());
             smash.setForegroundJobID(lastJob->getJobID());
             if(lastJob->getIsStopped()){
+                std::cout << "check getIsPipeCommand: " << lastJob->getIsPipeCommand() << std::endl;
                 if(lastJob->getIsPipeCommand()){
+                    std::cout << "pid in fg: " << lastJob->getJobPid() << std::endl;
                     if(kill(-(lastJob->getJobPid()),SIGCONT)==-1){
+                        perror("smash error: kill failed");
+                        for(int i=0; i<argNum; i++) free(args[i]);
+                        return;
+                    }
+                    if(kill(lastJob->getJobPid(),SIGCONT)==-1){
                         perror("smash error: kill failed");
                         for(int i=0; i<argNum; i++) free(args[i]);
                         return;
@@ -744,7 +755,13 @@ public:
             std::cout << lastStoppedJob->getCmdLine() << " : " << lastStoppedJob->getJobPid() << std::endl;
 
             if(lastStoppedJob->getIsPipeCommand()){
+                std::cout << "pid in fg: " << lastStoppedJob->getJobPid() << std::endl;
                 if(kill(-(lastStoppedJob->getJobPid()),SIGCONT)==-1){
+                    perror("smash error: kill failed");
+                    for(int i=0; i<argNum; i++) free(args[i]);
+                    return;
+                }
+                if(kill(lastStoppedJob->getJobPid(),SIGCONT)==-1){
                     perror("smash error: kill failed");
                     for(int i=0; i<argNum; i++) free(args[i]);
                     return;
@@ -881,14 +898,14 @@ public:
             pipe(fd);
             pid_t pidChild1=fork();
             if(pidChild1==-1) perror("smash error: fork failed");
-
             //Child1:
             if(pidChild1==0){
+                std::cout << "PipeCommand1 getpgid: " << getpgid(getpid()) << std::endl;
                 if(isStdError)dup2(fd[1],2);
                 else dup2(fd[1],1);
                 close(fd[0]);
                 close(fd[1]);
-                Command* cmd1=smash.CreateCommand(command1CmdCStr);
+                Command* cmd1=smash.CreateCommand(command1CmdCStr,true);
                 if(strcmp(argsCommand1[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
                 else cmd1->execute();
                 smash.setIsQuit(true);
@@ -900,10 +917,11 @@ public:
             if(pidChild2==-1) perror("smash error: fork failed");
             //Child2:
             if(pidChild2==0){
+                std::cout << "PipeCommand2 getpgid: " << getpgid(getpid()) << std::endl;
                 dup2(fd[0],0);
                 close(fd[0]);
                 close(fd[1]);
-                Command* cmd2=smash.CreateCommand(command2CmdCStr);
+                Command* cmd2=smash.CreateCommand(command2CmdCStr,true);
                 if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
                 else cmd2->execute();
                 smash.setIsQuit(true);
@@ -923,6 +941,7 @@ public:
         else{
             this->pid=pidChildren;
             if(!isBackground){
+                std::cout << "PipeCommand pid: " << pid << std::endl;
                 smash.setForegroundPid(pid);
                 smash.setForegroundCmdLine(this->cmd_line);
                 smash.setForegroundJobID(-1);
@@ -930,6 +949,7 @@ public:
             }
             else{
                 smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
+                std::cout << "PipeCommand pid: " << pid << std::endl;
                 sleep(1);
             }
         }
@@ -942,8 +962,10 @@ public:
 
 class RedirectionCommand : public Command {
     // TODO: Add your data members
+private:
+    bool isPipe;
 public:
-    explicit RedirectionCommand(const char* cmd_line):Command(cmd_line){};
+    explicit RedirectionCommand(const char* cmd_line, bool isPipe=false):Command(cmd_line),isPipe(isPipe){};
     virtual ~RedirectionCommand() = default;
     void execute() override{
         string cmd_s = string(cmd_line);
@@ -975,7 +997,7 @@ public:
         if(pid==-1) perror("smash error: fork failed");
         //Child:
         if(pid==0){
-            setpgrp();
+            if(!(this->isPipe)) setpgrp();
             if(close(1)==-1) perror("smash error: close failed");
             int file;
             if(isAppend) file=open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,0666);

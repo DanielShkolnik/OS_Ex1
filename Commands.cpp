@@ -110,7 +110,7 @@ SmallShell::~SmallShell() {
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
-Command * SmallShell::CreateCommand(const char* cmd_line) {
+Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
 	// For example:
 /*
   string cmd_s = string(cmd_line);
@@ -127,11 +127,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   this->isPipeCommand=false;
 
   if(cmd_s.find("cp")==0){
-      return new CopyCommand(cmd_line);
+      return new CopyCommand(cmd_line,isPipe);
   }
 
   else if(cmd_s.find(">")!=string::npos){
-    return new RedirectionCommand(cmd_line);
+    return new RedirectionCommand(cmd_line,isPipe);
   }
 
   else if(cmd_s.find("|")!=string::npos){
@@ -176,7 +176,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
    }
 
    else {
-     ExternalCommand* cmd= new ExternalCommand(cmd_line);
+     ExternalCommand* cmd= new ExternalCommand(cmd_line,isPipe);
      return cmd;
    }
 

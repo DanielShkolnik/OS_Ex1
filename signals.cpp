@@ -11,6 +11,7 @@ void ctrlZHandler(int sig_num) {
     if(smash.getForegroundPid()!=-1){
         if(smash.getIsPipeCommand()){
             if( kill(-(smash.getForegroundPid()),SIGSTOP)==-1) perror("smash error: kill failed");
+            if( kill(smash.getForegroundPid(),SIGSTOP)==-1) perror("smash error: kill failed");
         } else{
             if( kill(smash.getForegroundPid(),SIGSTOP)==-1) perror("smash error: kill failed");
         }
