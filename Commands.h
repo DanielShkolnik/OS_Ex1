@@ -261,6 +261,10 @@ class JobsList {
           return this->isPipeCommand;
       }
 
+      bool operator<(const JobEntry& jobEntry){
+          if (this->jobID<jobEntry.jobID) return true;
+          else return false;
+      }
   };
 
  // TODO: Add your data members
@@ -271,10 +275,14 @@ private:
     ~JobsList(){
         delete jobsList;
     };
-    void addJob(int jobPid, char* cmd_line, bool isStopped = false, bool isPipeCommand=false){
+    void addJob(int jobPid, char* cmd_line, bool isStopped = false, bool isPipeCommand=false, int foregroundJobID=-1){
         int jobID;
-        if(this->jobsList->empty()) jobID=1;
+        if(foregroundJobID!=-1){
+            jobID=foregroundJobID;
+        }
+        else if(this->jobsList->empty()) jobID=1;
         else {
+            this->jobsList->sort();
             jobID=this->jobsList->back().getJobID()+1;
         }
         if(isPipeCommand) this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line,isPipeCommand));
@@ -282,6 +290,7 @@ private:
 
     };
     void printJobsList(){
+        this->jobsList->sort();
         for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
             it->printJob();
         }
@@ -311,8 +320,8 @@ private:
               break;
           }
       }
-
   };
+
 
   void killAllJobs(){
       for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
@@ -341,6 +350,12 @@ private:
     int getJobsListSize(){
         return this->jobsList->size();
     };
+
+    std::list<JobEntry>* getJobsList(){
+        return this->jobsList;
+    }
+
+
 
   // TODO: Add extra methods or modify exisitng ones as needed
 };
@@ -422,6 +437,7 @@ private:
     char* foregroundCmdLine;
     bool isQuit;
     bool isPipeCommand;
+    int foregroundJobID;
     SmallShell();
 public:
     Command *CreateCommand(const char* cmd_line);
@@ -466,6 +482,14 @@ public:
         this->isPipeCommand=isPipeCommand;
     }
 
+    int getForegroundJobID(){
+        return this->foregroundJobID;
+    }
+
+    void setForegroundJobID(int foregroundJobID){
+        this->foregroundJobID=foregroundJobID;
+    }
+
 };
 
 
@@ -499,6 +523,7 @@ public:
             if(!_isBackgroundComamnd(cmd_line)){
                 smash.setForegroundPid(pid);
                 smash.setForegroundCmdLine(this->cmd_line);
+                smash.setForegroundJobID(-1);
                 waitpid(pid,NULL,0 | WUNTRACED);
             }
             else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
@@ -513,10 +538,84 @@ public:
 
 // TODO: should it really inhirit from BuiltInCommand ?
 class CopyCommand : public BuiltInCommand {
- public:
-  CopyCommand(const char* cmd_line);
-  virtual ~CopyCommand() {}
-  void execute() override;
+public:
+    CopyCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {};
+
+    virtual ~CopyCommand() = default;
+
+    void execute() override {
+
+        char *cmd = (char *) malloc(sizeof(char) * COMMAND_ARGS_MAX_LENGTH);
+        strcpy(cmd, this->cmd_line);
+        if (_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmd);
+        char *args[COMMAND_ARGS_MAX_LENGTH];
+        int argNum = _parseCommandLine(cmd, args);
+        if (argNum < 3) {
+            std::cerr << "smash error: cp: invalid arguments" << std::endl;
+            for (int i = 0; i < argNum; i++) free(args[i]);
+            free(cmd);
+            return;
+        }
+        SmallShell &smash = SmallShell::getInstance();
+        pid_t pid = fork();
+        if (pid == -1) perror("smash error: fork failed");
+        //Child:
+        if (pid == 0) {
+            setpgrp();
+
+            char buffer[1024];
+            int files[2];
+            ssize_t count;
+
+            files[0] = open(args[1], O_RDONLY);
+            if (files[0] == -1) {
+                perror("smash error: open failed");
+                for (int i = 0; i < argNum; i++) free(args[i]);
+                free(cmd);
+                smash.setIsQuit(true);
+                return;
+            }
+
+            files[1] = open(args[2], O_CREAT | O_RDWR | O_TRUNC, 0666);
+            if (files[1] == -1) /* Check if file opened (permissions problems ...) */
+            {
+                perror("smash error: open failed");
+                close(files[0]);
+                for (int i = 0; i < argNum; i++) free(args[i]);
+                free(cmd);
+                smash.setIsQuit(true);
+                return;
+            }
+
+            while ((count = read(files[0], buffer, sizeof(buffer))) != 0)
+                if (write(files[1], buffer, count) == -1) {
+                    perror("smash error: write failed");
+                    break;
+                }
+            close(files[0]);
+            close(files[1]);
+            for (int i = 0; i < argNum; i++) free(args[i]);
+            free(cmd);
+            smash.setIsQuit(true);
+            return;
+        }
+
+            //Parent:
+        else {
+            this->pid = pid;
+            SmallShell &smash = SmallShell::getInstance();
+            if (!_isBackgroundComamnd(cmd_line)) {
+                smash.setForegroundPid(pid);
+                smash.setForegroundCmdLine(this->cmd_line);
+                smash.setForegroundJobID(-1);
+                waitpid(pid, NULL, 0 | WUNTRACED);
+            } else smash.getJobsList()->addJob(this->pid, this->cmd_line, false);
+        }
+
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        free(cmd);
+
+    }
 };
 
 // TODO: add more classes if needed 
@@ -549,6 +648,7 @@ public:
             SmallShell& smash=SmallShell::getInstance();
             smash.setForegroundPid(lastJob->getJobPid());
             smash.setForegroundCmdLine(lastJob->getCmdLine());
+            smash.setForegroundJobID(lastJob->getJobID());
             if(lastJob->getIsStopped()){
                 if(lastJob->getIsPipeCommand()){
                     if(kill(-(lastJob->getJobPid()),SIGCONT)==-1){
@@ -589,6 +689,7 @@ public:
                     SmallShell& smash=SmallShell::getInstance();
                     smash.setForegroundPid(job->getJobPid());
                     smash.setForegroundCmdLine(job->getCmdLine());
+                    smash.setForegroundJobID(job->getJobID());
                     if(job->getIsStopped()){
                         if(job->getIsPipeCommand()){
                             if(kill(-(job->getJobPid()),SIGCONT)==-1){
@@ -683,6 +784,7 @@ public:
                                 for(int i=0; i<argNum; i++) free(args[i]);
                                 return;
                             }
+                            stoppedJob->setIsStopped(false);
                         }
                         else{
                             if(kill(stoppedJob->getJobPid(),SIGCONT)==-1){
@@ -690,6 +792,7 @@ public:
                                 for(int i=0; i<argNum; i++) free(args[i]);
                                 return;
                             }
+                            stoppedJob->setIsStopped(false);
                         }
                     }
                     else{
@@ -822,6 +925,7 @@ public:
             if(!isBackground){
                 smash.setForegroundPid(pid);
                 smash.setForegroundCmdLine(this->cmd_line);
+                smash.setForegroundJobID(-1);
                 waitpid(pid,NULL,WUNTRACED);
             }
             else{
@@ -873,13 +977,15 @@ public:
         if(pid==0){
             setpgrp();
             if(close(1)==-1) perror("smash error: close failed");
-            if(isAppend) open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,666);
-            else open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,666);
+            int file;
+            if(isAppend) file=open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,0666);
+            else file=open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,0666);
             SmallShell& smash=SmallShell::getInstance();
             Command* cmd=smash.CreateCommand(commandCmdCStr);
             if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is: " << getppid() << endl;
             else cmd->execute();
             smash.setIsQuit(true);
+            close(file);
             return;
             //exit(0);
         }

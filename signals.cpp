@@ -14,9 +14,10 @@ void ctrlZHandler(int sig_num) {
         } else{
             if( kill(smash.getForegroundPid(),SIGSTOP)==-1) perror("smash error: kill failed");
         }
-        smash.getJobsList()->addJob(smash.getForegroundPid(),smash.getForegroundCmdLine(),true);
+        smash.getJobsList()->addJob(smash.getForegroundPid(),smash.getForegroundCmdLine(),true,false,smash.getForegroundJobID());
         std::cout << "smash: process " << smash.getForegroundPid() << " was stopped" << std::endl;
         smash.setForegroundPid(-1);
+        smash.setForegroundJobID(-1);
     }
 }
 

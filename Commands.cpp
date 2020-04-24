@@ -126,7 +126,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   string cmd_s = string(cmd_line);
   this->isPipeCommand=false;
 
-  if(cmd_s.find(">")!=string::npos){
+  if(cmd_s.find("cp")==0){
+      return new CopyCommand(cmd_line);
+  }
+
+  else if(cmd_s.find(">")!=string::npos){
     return new RedirectionCommand(cmd_line);
   }
 
