@@ -514,7 +514,6 @@ public:
         //Child:
         if(pid==0){
             if(!(this->isPipe)) setpgrp();
-            std::cerr << "EXCommand getpgid: " << getpgid(getpid()) << std::endl;
             char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
             execv(argv[0], argv);
             perror("smash error: execv failed");
@@ -653,16 +652,11 @@ public:
             smash.setForegroundPid(lastJob->getJobPid());
             smash.setForegroundCmdLine(lastJob->getCmdLine());
             smash.setForegroundJobID(lastJob->getJobID());
+            if(lastJob->getIsPipeCommand()) smash.setIsPipeCommand(true);
+
             if(lastJob->getIsStopped()){
-                std::cout << "check getIsPipeCommand: " << lastJob->getIsPipeCommand() << std::endl;
                 if(lastJob->getIsPipeCommand()){
-                    std::cout << "pid in fg: " << lastJob->getJobPid() << std::endl;
                     if(kill(-(lastJob->getJobPid()),SIGCONT)==-1){
-                        perror("smash error: kill failed");
-                        for(int i=0; i<argNum; i++) free(args[i]);
-                        return;
-                    }
-                    if(kill(lastJob->getJobPid(),SIGCONT)==-1){
                         perror("smash error: kill failed");
                         for(int i=0; i<argNum; i++) free(args[i]);
                         return;
@@ -701,6 +695,7 @@ public:
                     smash.setForegroundPid(job->getJobPid());
                     smash.setForegroundCmdLine(job->getCmdLine());
                     smash.setForegroundJobID(job->getJobID());
+                    if(job->getIsPipeCommand()) smash.setIsPipeCommand(true);
                     if(job->getIsStopped()){
                         if(job->getIsPipeCommand()){
                             if(kill(-(job->getJobPid()),SIGCONT)==-1){
@@ -755,13 +750,7 @@ public:
             std::cout << lastStoppedJob->getCmdLine() << " : " << lastStoppedJob->getJobPid() << std::endl;
 
             if(lastStoppedJob->getIsPipeCommand()){
-                std::cout << "pid in fg: " << lastStoppedJob->getJobPid() << std::endl;
                 if(kill(-(lastStoppedJob->getJobPid()),SIGCONT)==-1){
-                    perror("smash error: kill failed");
-                    for(int i=0; i<argNum; i++) free(args[i]);
-                    return;
-                }
-                if(kill(lastStoppedJob->getJobPid(),SIGCONT)==-1){
                     perror("smash error: kill failed");
                     for(int i=0; i<argNum; i++) free(args[i]);
                     return;
@@ -900,7 +889,6 @@ public:
             if(pidChild1==-1) perror("smash error: fork failed");
             //Child1:
             if(pidChild1==0){
-                std::cout << "PipeCommand1 getpgid: " << getpgid(getpid()) << std::endl;
                 if(isStdError)dup2(fd[1],2);
                 else dup2(fd[1],1);
                 close(fd[0]);
@@ -917,7 +905,6 @@ public:
             if(pidChild2==-1) perror("smash error: fork failed");
             //Child2:
             if(pidChild2==0){
-                std::cout << "PipeCommand2 getpgid: " << getpgid(getpid()) << std::endl;
                 dup2(fd[0],0);
                 close(fd[0]);
                 close(fd[1]);
@@ -941,7 +928,6 @@ public:
         else{
             this->pid=pidChildren;
             if(!isBackground){
-                std::cout << "PipeCommand pid: " << pid << std::endl;
                 smash.setForegroundPid(pid);
                 smash.setForegroundCmdLine(this->cmd_line);
                 smash.setForegroundJobID(-1);
@@ -949,7 +935,6 @@ public:
             }
             else{
                 smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
-                std::cout << "PipeCommand pid: " << pid << std::endl;
                 sleep(1);
             }
         }
