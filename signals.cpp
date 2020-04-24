@@ -39,6 +39,20 @@ void ctrlCHandler(int sig_num) {
 
 void alarmHandler(int sig_num) {
   // TODO: Add your implementation
-
+    SmallShell& smash=SmallShell::getInstance();
+    char cmd[COMMAND_ARGS_MAX_LENGTH];
+    smash.getTimeOutList()->removeFinishedTimeOutAlarm();
+    int pid=smash.getTimeOutList()->getAlarmedTimeOutParamsAndDelete(cmd);
+    if(pid!=-1){
+        if(kill(-pid,SIGKILL)==-1) perror("smash error: kill failed");
+        smash.getTimeOutList()->sortTimeOutList();
+        std::cout << "smash: got an alarm" << std::endl;
+        std::cout << "smash: " << cmd << " timed out!" << std::endl;
+    }
+    if(!smash.getTimeOutList()->isEmptyTimeOutList()){
+        time_t now=time(nullptr);
+        double time = smash.getTimeOutList()->getFirstTimeOutAlarm().getDuration()-difftime(now,smash.getTimeOutList()->getFirstTimeOutAlarm().getTimeBegin());
+        alarm(round(time));
+    }
 }
 

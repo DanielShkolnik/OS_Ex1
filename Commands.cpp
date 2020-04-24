@@ -97,6 +97,7 @@ SmallShell::SmallShell() {
   this->isQuit=false;
   this->foregroundCmdLine= nullptr;
   this->isPipeCommand=false;
+  this->timeOutList= new TimeOutList;
 }
 
 SmallShell::~SmallShell() {
@@ -105,6 +106,7 @@ SmallShell::~SmallShell() {
   free(plastPwd);
   delete jobsList;
   free(foregroundCmdLine);
+  delete timeOutList;
 }
 
 /**
@@ -126,7 +128,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
   string cmd_s = string(cmd_line);
   this->isPipeCommand=false;
 
-  if(cmd_s.find("cp")==0){
+  if(cmd_s.find("timeout")==0){
+    return new TimeOutCommand(cmd_line);
+  }
+
+  else if(cmd_s.find("cp")==0){
       return new CopyCommand(cmd_line,isPipe);
   }
 
@@ -136,7 +142,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
 
   else if(cmd_s.find("|")!=string::npos){
     this->isPipeCommand=true;
-    return new PipeCommand(cmd_line);
+    return new PipeCommand(cmd_line,isPipe);
   }
 
   else if(cmd_s.find("chprompt")==0) {

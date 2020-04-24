@@ -8,6 +8,7 @@
 #include <list>
 #include <sys/wait.h>
 
+#include <cmath>
 #include <fcntl.h>
 
 
@@ -200,8 +201,8 @@ class JobsList {
       bool isPipeCommand;
 
   public:
-      JobEntry(int jobID, bool isStopped, time_t timeElapsed, int jobPid,char* cmd_line,bool isPipeCommand=false ,int pipeCommand1Pid=-1,
-               int pipeCommand2Pid=-1):jobID(jobID),isStopped(isStopped),timeElapsed(timeElapsed),
+      JobEntry(int jobID, bool isStopped, time_t timeElapsed, int jobPid,char* cmd_line,bool isPipeCommand=false, bool isTimeOutCommand=false):
+              jobID(jobID),isStopped(isStopped),timeElapsed(timeElapsed),
               jobPid(jobPid),isPipeCommand(isPipeCommand){
           this->cmd_line=(char*)malloc(sizeof(char)*(strlen(cmd_line)+1));
           strcpy(this->cmd_line,cmd_line);
@@ -265,6 +266,7 @@ class JobsList {
           if (this->jobID<jobEntry.jobID) return true;
           else return false;
       }
+
   };
 
  // TODO: Add your data members
@@ -285,9 +287,7 @@ private:
             this->jobsList->sort();
             jobID=this->jobsList->back().getJobID()+1;
         }
-        if(isPipeCommand) this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line,isPipeCommand));
-        else this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line));
-
+        this->jobsList->push_back(JobEntry(jobID,isStopped,time(nullptr),jobPid,cmd_line,isPipeCommand));
     };
     void printJobsList(){
         this->jobsList->sort();
@@ -295,18 +295,7 @@ private:
             it->printJob();
         }
     };
-  void removeFinishedJobs(){
-      for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end();){
-          int commandPid=it->getJobPid();
-          if(waitpid(commandPid,NULL,WNOHANG)==commandPid){
-              it=this->jobsList->erase(it);
-              if(it==this->jobsList->end()) break;
-          }
-          else {
-              ++it;
-          }
-      }
-  };
+
   JobEntry* getJobById(int jobId){
       for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end(); ++it){
           if(it->getJobID()==jobId) return &(*it);
@@ -355,6 +344,18 @@ private:
         return this->jobsList;
     }
 
+    void removeFinishedJobs(){
+        for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end();){
+            int commandPid=it->getJobPid();
+            if(waitpid(commandPid,NULL,WNOHANG)==commandPid){
+                it=this->jobsList->erase(it);
+                if(it==this->jobsList->end()) break;
+            }
+            else {
+                ++it;
+            }
+        }
+    };
 
 
   // TODO: Add extra methods or modify exisitng ones as needed
@@ -428,6 +429,9 @@ private:
 };
 
 
+
+class TimeOutList;
+
 class SmallShell {
 private:
     // TODO: Add your data members
@@ -438,6 +442,7 @@ private:
     bool isQuit;
     bool isPipeCommand;
     int foregroundJobID;
+    TimeOutList* timeOutList;
     SmallShell();
 public:
     Command *CreateCommand(const char* cmd_line, bool isPipe=false);
@@ -490,7 +495,12 @@ public:
         this->foregroundJobID=foregroundJobID;
     }
 
+    TimeOutList* getTimeOutList(){
+        return this->timeOutList;
+    }
+
 };
+
 
 
 class ExternalCommand : public Command {
@@ -845,8 +855,10 @@ public:
 
 class PipeCommand : public Command {
     // TODO: Add your data members
+private:
+    bool isPipe;
 public:
-    PipeCommand(const char* cmd_line):Command(cmd_line){};
+    PipeCommand(const char* cmd_line,bool isPipe):Command(cmd_line),isPipe(isPipe){};
     virtual ~PipeCommand() = default;
     void execute() override{
         string cmd_s = string(cmd_line);
@@ -882,7 +894,7 @@ public:
         if(pidChildren==-1) perror("smash error: fork failed");
         //Children:
         if(pidChildren==0){
-            setpgrp();
+            if(!isPipe) setpgrp();
             int fd[2];
             pipe(fd);
             pid_t pidChild1=fork();
@@ -988,7 +1000,9 @@ public:
             if(isAppend) file=open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,0666);
             else file=open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,0666);
             SmallShell& smash=SmallShell::getInstance();
-            Command* cmd=smash.CreateCommand(commandCmdCStr);
+            Command* cmd;
+            if(this->isPipe) cmd=smash.CreateCommand(commandCmdCStr,true);
+            else cmd=smash.CreateCommand(commandCmdCStr);
             if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is: " << getppid() << endl;
             else cmd->execute();
             smash.setIsQuit(true);
@@ -1014,6 +1028,199 @@ public:
     //void prepare() override;
     //void cleanup() override;
 };
+
+
+
+
+//********************************************************************************************************************************************************
+class TimeOutList {
+public:
+    class TimeOutEntry {
+        // TODO: Add your data members
+    private:
+        int commandPid;
+        time_t timeBegin;
+        int duration;
+        char *cmd_line;
+
+    public:
+        TimeOutEntry(int commandPid, int duration, char *cmd_line) : commandPid(commandPid), duration(duration) {
+            this->cmd_line = (char *) malloc(sizeof(char) * (strlen(cmd_line) + 1));
+            strcpy(this->cmd_line, cmd_line);
+            this->timeBegin = time(nullptr);
+        };
+
+
+        //Copy Constructor
+        TimeOutEntry(const TimeOutEntry &timeOutEntry) {
+            this->commandPid = timeOutEntry.commandPid;
+            this->timeBegin = timeOutEntry.timeBegin;
+            this->duration = timeOutEntry.duration;
+            this->cmd_line = (char *) malloc(sizeof(char) * (strlen(timeOutEntry.cmd_line) + 1));
+            strcpy(this->cmd_line, timeOutEntry.cmd_line);
+        };
+
+        //Operator= Constructor
+        TimeOutEntry &operator=(const TimeOutEntry &timeOutEntry) {
+            this->commandPid = timeOutEntry.commandPid;
+            this->timeBegin = timeOutEntry.timeBegin;
+            this->duration = timeOutEntry.duration;
+            this->cmd_line = (char *) malloc(sizeof(char) * (strlen(timeOutEntry.cmd_line) + 1));
+            strcpy(this->cmd_line, timeOutEntry.cmd_line);
+            return *this;
+        };
+
+        int getcommandPid() {
+            return this->commandPid;
+        }
+
+        time_t getTimeBegin() {
+            return this->timeBegin;
+        }
+
+        char *getCmdLine() {
+            return this->cmd_line;
+        }
+
+        int getDuration() {
+            return this->duration;
+        }
+
+        bool operator<(const TimeOutEntry &timeOutEntry) {
+            time_t now = time(nullptr);
+            double time1 = this->duration - difftime(now, this->timeBegin);
+            double time2 = timeOutEntry.duration - difftime(now, timeOutEntry.timeBegin);
+            if (time1 < time2) return true;
+            return false;
+        }
+
+    };
+
+
+    // TODO: Add your data members
+private:
+    std::list<TimeOutEntry> *timeOutList;
+public:
+    TimeOutList() : timeOutList(new std::list<TimeOutEntry>) {};
+
+    ~TimeOutList() {
+        delete timeOutList;
+    };
+
+    void addTimeOut(int commandPid, time_t timeBegin, int duration, char *cmd_line) {
+        this->timeOutList->push_back(TimeOutEntry(commandPid, duration, cmd_line));
+        this->timeOutList->sort();
+        time_t now = time(nullptr);
+        double time = this->timeOutList->front().getDuration()-difftime(now,this->timeOutList->front().getTimeBegin());
+        alarm(round(time));
+    };
+
+    void removeFinishedTimeOutAlarm() {
+        for(std::list<TimeOutEntry>::iterator it=timeOutList->begin(); it != timeOutList->end();){
+            int commandPid=it->getcommandPid();
+            if(waitpid(commandPid,NULL,WNOHANG)==-1){
+                it=this->timeOutList->erase(it);
+                if(it==this->timeOutList->end()) break;
+            }
+            else {
+                it++;
+            }
+        }
+    }
+
+    bool isEmptyTimeOutList(){
+        return this->timeOutList->empty();
+    }
+
+    void sortTimeOutList(){
+        this->timeOutList->sort();
+    }
+
+    int getAlarmedTimeOutParamsAndDelete(char* cmd){
+        time_t now = time(nullptr);
+        for(std::list<TimeOutEntry>::iterator it=timeOutList->begin(); it != timeOutList->end(); it++){
+            double time = it->getDuration()-difftime(now,it->getTimeBegin());
+            if(round(time)<=0){
+                strcpy(cmd,it->getCmdLine());
+                int pid=it->getcommandPid();
+                this->timeOutList->erase(it);
+                return pid;
+            }
+        }
+        return -1;
+    }
+
+    TimeOutEntry& getFirstTimeOutAlarm(){
+        return this->timeOutList->front();
+    }
+
+};
+
+class TimeOutCommand : public Command {
+public:
+    TimeOutCommand(const char* cmd_line):Command(cmd_line){};
+    virtual ~TimeOutCommand() = default;
+
+    //Copy Constructor
+    TimeOutCommand(const TimeOutCommand& command) = default;
+    //Operator= Constructor
+    TimeOutCommand& operator=(const TimeOutCommand& command)= default;
+
+    void execute() override{
+        char cmdNoBackground[COMMAND_ARGS_MAX_LENGTH];
+        strcpy(cmdNoBackground,this->cmd_line);
+        if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmdNoBackground);
+
+        char *args[COMMAND_ARGS_MAX_LENGTH];
+        int argNum = _parseCommandLine(cmdNoBackground, args);
+        if(argNum<3){
+            std::cerr << "smash error: timeout: invalid arguments" << std::endl;
+            for (int i = 0; i < argNum; i++) free(args[i]);
+            return;
+        }
+        string commandCmd;
+        for (int i = 2; i < argNum; i++){
+            commandCmd.append(args[i]);
+            if(i!=argNum-1) commandCmd.append(" ");
+        }
+
+        char commandCmdCStr[commandCmd.size()];
+        strcpy(commandCmdCStr,commandCmd.c_str());
+
+        pid_t pid=fork();
+        if(pid==-1) perror("smash error: fork failed");
+        //Child:
+        if(pid==0){
+            setpgrp();
+            SmallShell& smash=SmallShell::getInstance();
+            Command* cmd=smash.CreateCommand(commandCmdCStr,true);
+            if(strcmp(args[2],"showpid")==0) std::cout << "smash pid is: " << getppid() << endl;
+            else cmd->execute();
+            smash.setIsQuit(true);
+            return;
+        }
+            //Parent:
+        else{
+            this->pid=pid;
+            int duration=stoi(args[1]);
+            SmallShell& smash=SmallShell::getInstance();
+            smash.getTimeOutList()->addTimeOut(this->pid,time(nullptr),duration,this->cmd_line);
+                if(!_isBackgroundComamnd(cmd_line)){
+                    smash.setForegroundPid(pid);
+                    smash.setForegroundCmdLine(this->cmd_line);
+                    smash.setForegroundJobID(-1);
+                    waitpid(pid,NULL,0 | WUNTRACED);
+                }
+                else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
+        }
+        for (int i = 0; i < argNum; i++) free(args[i]);
+    };
+};
+
+//********************************************************************************************************************************************************
+
+
+
 
 
 
