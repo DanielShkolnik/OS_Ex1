@@ -137,12 +137,16 @@ public:
       }
       char* oldPath=get_current_dir_name();
       if (oldPath== nullptr) perror("smash error: get_current_dir_name failed");
-      if(!firstCD) free(*plastPwd);
-      *plastPwd=(char*)malloc(strlen(oldPath)+1);
-      strcpy(*plastPwd,oldPath);
-      int chdirError=chdir(args[1]);
-      if(chdirError==-1) perror("smash error: chdir failed");
 
+      int chdirError=chdir(args[1]);
+      if(chdirError==-1){
+          perror("smash error: chdir failed");
+      }
+      else{
+          if(!firstCD) free(*plastPwd);
+          *plastPwd=(char*)malloc(strlen(oldPath)+1);
+          strcpy(*plastPwd,oldPath);
+      }
       if(firstCD) firstCD=false;
       for(int i=0; i<argNum; i++) free(args[i]);
       free(cmd);
