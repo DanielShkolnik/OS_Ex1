@@ -730,7 +730,7 @@ public:
         if(argNum==2) {
             int jobID;
             try{
-                jobID=abs(stoi(args[1]));
+                jobID=stoi(args[1]);
             }
             catch(const std::invalid_argument&){
                 invalidArg=true;
