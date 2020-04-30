@@ -693,7 +693,7 @@ public:
                 free(cmd);
                 return;
             }
-            this->jobsList->removeJobById(lastJob->getJobID());
+
             std::cout << lastJob->getCmdLine() << " : " << lastJob->getJobPid() << std::endl;
             SmallShell& smash=SmallShell::getInstance();
             smash.setForegroundPid(lastJob->getJobPid());
@@ -720,7 +720,9 @@ public:
                 }
                 lastJob->setIsStopped(false);
             }
-            waitpid(lastJob->getJobPid(),NULL,0 | WUNTRACED);
+            int lastJobPid=lastJob->getJobPid();
+            this->jobsList->removeJobById(lastJob->getJobID());
+            waitpid(lastJobPid,NULL,0 | WUNTRACED);
         }
         if(argNum==2) {
             int jobID;
@@ -739,7 +741,7 @@ public:
                     return;
                 }
                 else{
-                    this->jobsList->removeJobById(job->getJobID());
+
                     std::cout << job->getCmdLine() << " : " << job->getJobPid() << std::endl;
                     SmallShell& smash=SmallShell::getInstance();
                     smash.setForegroundPid(job->getJobPid());
@@ -765,7 +767,9 @@ public:
                         }
                         job->setIsStopped(false);
                     }
-                    if(waitpid(job->getJobPid(),NULL,0 | WUNTRACED)==-1){
+                    int jobPid=job->getJobPid();
+                    this->jobsList->removeJobById(job->getJobID());
+                    if(waitpid(jobPid,NULL,0 | WUNTRACED)==-1){
                         perror("smash error: waitpid failed");
                         for(int i=0; i<argNum; i++) free(args[i]);
                         free(cmd);
