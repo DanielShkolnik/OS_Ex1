@@ -375,6 +375,7 @@ private:
     void removeFinishedJobs(){
         for(std::list<JobEntry>::iterator it=jobsList->begin(); it != jobsList->end();){
             int commandPid=it->getJobPid();
+            //if(it->getIsPipeCommand()) commandPid=-commandPid;
             if(waitpid(commandPid,NULL,WNOHANG)==commandPid){
                 it=this->jobsList->erase(it);
                 if(it==this->jobsList->end()) break;
@@ -1298,13 +1299,14 @@ public:
             SmallShell& smash=SmallShell::getInstance();
             smash.getTimeOutList()->addTimeOut(this->pid,time(nullptr),duration,this->cmd_line);
                 if(!_isBackgroundComamnd(cmd_line)){
+                    smash.setIsPipeCommand(true);
                     smash.setForegroundPid(pid);
                     smash.setForegroundCmdLine(this->cmd_line);
                     smash.setForegroundJobID(-1);
                     waitpid(pid,NULL,0 | WUNTRACED);
                     smash.setForegroundPid(-1);
                 }
-                else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
+                else smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
         }
         for (int i = 0; i < argNum; i++) free(args[i]);
     };
