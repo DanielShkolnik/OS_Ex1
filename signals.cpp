@@ -44,7 +44,7 @@ void alarmHandler(int sig_num) {
     char cmd[COMMAND_ARGS_MAX_LENGTH];
     smash.getTimeOutList()->removeFinishedTimeOutAlarm();
     int pid=smash.getTimeOutList()->getAlarmedTimeOutParamsAndDelete(cmd);
-    if(pid!=-1){
+    if(pid!=-1 && waitpid(pid,NULL,WNOHANG)!=-1){
         if(kill(-pid,SIGKILL)==-1) perror("smash error: kill failed");
         smash.getTimeOutList()->sortTimeOutList();
 
