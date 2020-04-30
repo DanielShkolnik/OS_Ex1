@@ -93,6 +93,7 @@ void _removeBackgroundSign(char* cmd_line) {
 SmallShell::SmallShell() {
 // TODO: add your implementation
   this->plastPwd= (char**) malloc(sizeof(char*));
+  *(this->plastPwd)= nullptr;
   this->jobsList= new JobsList;
   this->isQuit=false;
   this->foregroundCmdLine= nullptr;
@@ -125,65 +126,83 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
     return new ExternalCommand(cmd_line);
   }
   */
-  string cmd_s = string(cmd_line);
+  char *args[COMMAND_ARGS_MAX_LENGTH];
+  int argNum = _parseCommandLine(cmd_line, args);
+  string cmd_s_special = string(cmd_line);
   this->isPipeCommand=false;
 
-  if(cmd_s.find("timeout")==0){
-    return new TimeOutCommand(cmd_line);
+
+
+  if(strcmp(args[0],"timeout")==0){
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new TimeOutCommand(cmd_line);
   }
 
-  else if(cmd_s.find("cp")==0){
+  else if(strcmp(args[0],"cp")==0){
+      for (int i = 0; i < argNum; i++) free(args[i]);
       return new CopyCommand(cmd_line,isPipe);
   }
 
-  else if(cmd_s.find(">")!=string::npos){
-    return new RedirectionCommand(cmd_line,isPipe);
+  else if(cmd_s_special.find(">")!=string::npos){
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new RedirectionCommand(cmd_line,isPipe);
   }
 
-  else if(cmd_s.find("|")!=string::npos){
+  else if(cmd_s_special.find("|")!=string::npos){
     this->isPipeCommand=true;
+    for (int i = 0; i < argNum; i++) free(args[i]);
     return new PipeCommand(cmd_line,isPipe);
   }
 
-  else if(cmd_s.find("chprompt")==0) {
-    return new ChangePromptCommand(cmd_line);
+  else if(strcmp(args[0],"chprompt")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new ChangePromptCommand(cmd_line);
   }
 
-  else if (cmd_s.find("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
+  else if (strcmp(args[0],"pwd")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new GetCurrDirCommand(cmd_line);
   }
 
-  else if(cmd_s.find("showpid")==0) {
-    return new ShowPidCommand(cmd_line);
+  else if(strcmp(args[0],"showpid")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new ShowPidCommand(cmd_line);
   }
 
-  else if(cmd_s.find("cd")==0) {
-    return new ChangeDirCommand(cmd_line,this->plastPwd);
+  else if(strcmp(args[0],"cd")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new ChangeDirCommand(cmd_line,this->plastPwd);
   }
 
-  else if(cmd_s.find("jobs")==0) {
-    return new JobsCommand(cmd_line,this->jobsList);
+  else if(strcmp(args[0],"jobs")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new JobsCommand(cmd_line,this->jobsList);
   }
 
-   else if(cmd_s.find("kill")==0) {
-     return new KillCommand(cmd_line,this->jobsList);
+   else if(strcmp(args[0],"kill")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new KillCommand(cmd_line,this->jobsList);
    }
 
-   else if(cmd_s.find("fg")==0) {
-     return new ForegroundCommand(cmd_line,this->jobsList);
+   else if(strcmp(args[0],"fg")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new ForegroundCommand(cmd_line,this->jobsList);
    }
 
-   else if(cmd_s.find("bg")==0) {
-     return new BackgroundCommand(cmd_line,this->jobsList);
+   else if(strcmp(args[0],"bg")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new BackgroundCommand(cmd_line,this->jobsList);
    }
 
-   else if(cmd_s.find("quit")==0) {
-     return new QuitCommand(cmd_line,this->jobsList);
+   else if(strcmp(args[0],"quit")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new QuitCommand(cmd_line,this->jobsList);
    }
 
    else {
-     ExternalCommand* cmd= new ExternalCommand(cmd_line,isPipe);
-     return cmd;
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      ExternalCommand* cmd= new ExternalCommand(cmd_line,isPipe);
+      return cmd;
    }
 
   return nullptr;
@@ -198,6 +217,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
   this->setForegroundPid(-1);
   Command* cmd = CreateCommand(cmd_line);
   if(cmd!= nullptr) cmd->execute();
+  delete cmd;
 }
 
 
