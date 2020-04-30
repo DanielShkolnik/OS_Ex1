@@ -172,7 +172,7 @@ class ShowPidCommand : public BuiltInCommand {
   ShowPidCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
   virtual ~ShowPidCommand() = default;
   void execute() override{
-      std::cout << "smash pid is: " << getpid() << endl;
+      std::cout << "smash pid is " << getpid() << endl;
   };
 };
 
@@ -344,7 +344,9 @@ private:
           if(it->getIsPipeCommand()){
               if(kill(-(it->getJobPid()),SIGKILL)==-1) perror("smash error: kill failed");
           }
-          else if(kill(it->getJobPid(),SIGKILL)==-1) perror("smash error: kill failed");
+          else{
+              if(kill(it->getJobPid(),SIGKILL)==-1) perror("smash error: kill failed");
+          }
       }
   };
 
@@ -836,7 +838,7 @@ public:
         if(argNum==2) {
             int jobID;
             try{
-                jobID=abs(stoi(args[1]));
+                jobID=stoi(args[1]);
             }
             catch(const std::invalid_argument&){
                 invalidArg=true;
@@ -872,7 +874,7 @@ public:
                         }
                     }
                     else{
-                        std::cerr << "smash error: bg: job-id "<< stoppedJob->getJobPid() <<" is already running in the background" << std::endl;
+                        std::cerr << "smash error: bg: job-id "<< stoppedJob->getJobID() <<" is already running in the background" << std::endl;
                     }
                 }
             }
@@ -914,6 +916,7 @@ public:
 
         SmallShell& smash=SmallShell::getInstance();
         smash.setIsQuit(true);
+        smash.getJobsList()->removeFinishedJobs();
     };
 };
 
@@ -971,7 +974,7 @@ public:
                 close(fd[0]);
                 close(fd[1]);
                 Command* cmd1=smash.CreateCommand(command1CmdCStr,true);
-                if(strcmp(argsCommand1[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
+                if(strcmp(argsCommand1[0],"showpid")==0) std::cout << "smash pid is " << smashPid << endl;
                 else cmd1->execute();
                 delete cmd1;
                 smash.setIsQuit(true);
@@ -989,7 +992,7 @@ public:
                 close(fd[0]);
                 close(fd[1]);
                 Command* cmd2=smash.CreateCommand(command2CmdCStr,true);
-                if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is: " << smashPid << endl;
+                if(strcmp(argsCommand2[0],"showpid")==0) std::cout << "smash pid is " << smashPid << endl;
                 else cmd2->execute();
                 delete cmd2;
                 smash.setIsQuit(true);
@@ -1068,16 +1071,23 @@ public:
         if(pid==-1) perror("smash error: fork failed");
         //Child:
         if(pid==0){
+            SmallShell& smash=SmallShell::getInstance();
             if(!(this->isPipe)) setpgrp();
             if(close(1)==-1) perror("smash error: close failed");
             int file;
             if(isAppend) file=open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,0666);
             else file=open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,0666);
-            SmallShell& smash=SmallShell::getInstance();
+            if(file==-1){
+                perror("smash error: open failed");
+                for(int i=0; i<argNumPath; i++) free(argsPath[i]);
+                for(int i=0; i<argsNumCommand; i++) free(argsCommand[i]);
+                smash.setIsQuit(true);
+                return;
+            }
             Command* cmd;
             if(this->isPipe) cmd=smash.CreateCommand(commandCmdCStr,true);
             else cmd=smash.CreateCommand(commandCmdCStr);
-            if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is: " << getppid() << endl;
+            if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is " << getppid() << endl;
             else cmd->execute();
             delete cmd;
             smash.setIsQuit(true);
@@ -1253,7 +1263,7 @@ public:
 
         char *args[COMMAND_ARGS_MAX_LENGTH];
         int argNum = _parseCommandLine(cmdNoBackground, args);
-        if(argNum<3){
+        if(argNum<3 || stoi(args[1])<0){
             std::cerr << "smash error: timeout: invalid arguments" << std::endl;
             for (int i = 0; i < argNum; i++) free(args[i]);
             return;
@@ -1274,7 +1284,7 @@ public:
             setpgrp();
             SmallShell& smash=SmallShell::getInstance();
             Command* cmd=smash.CreateCommand(commandCmdCStr,true);
-            if(strcmp(args[2],"showpid")==0) std::cout << "smash pid is: " << getppid() << endl;
+            if(strcmp(args[2],"showpid")==0) std::cout << "smash pid is " << getppid() << endl;
             else cmd->execute();
             delete cmd;
             smash.setIsQuit(true);

@@ -126,8 +126,13 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
     return new ExternalCommand(cmd_line);
   }
   */
-  char *args[COMMAND_ARGS_MAX_LENGTH];
-  int argNum = _parseCommandLine(cmd_line, args);
+   char cmdNoBackground[COMMAND_ARGS_MAX_LENGTH];
+   strcpy(cmdNoBackground,cmd_line);
+   if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmdNoBackground);
+
+   char *args[COMMAND_ARGS_MAX_LENGTH];
+   int argNum = _parseCommandLine(cmdNoBackground, args);
+
   if(argNum==0){
       args[0]=(char*)malloc(strlen(cmd_line)+1);
       strcpy(args[0],cmd_line);
