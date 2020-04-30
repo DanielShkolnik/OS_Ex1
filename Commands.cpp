@@ -128,9 +128,13 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
   */
   char *args[COMMAND_ARGS_MAX_LENGTH];
   int argNum = _parseCommandLine(cmd_line, args);
+  if(argNum==0){
+      args[0]=(char*)malloc(strlen(cmd_line)+1);
+      strcpy(args[0],cmd_line);
+      argNum=1;
+  }
   string cmd_s_special = string(cmd_line);
   this->isPipeCommand=false;
-
 
 
   if(strcmp(args[0],"timeout")==0){
