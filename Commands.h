@@ -553,7 +553,7 @@ public:
         //Child:
         if(pid==0){
             if(!(this->isPipe)) setpgrp();
-            char* argv[] = {(char*)"bash", (char*)"-c", cmd, NULL};
+            char* argv[] = {(char*)"/bin/bash", (char*)"-c", cmd, NULL};
             execv(argv[0], argv);
             perror("smash error: execv failed");
         }
