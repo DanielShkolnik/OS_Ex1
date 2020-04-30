@@ -266,7 +266,7 @@ class JobsList {
           double time=difftime(now, this->timeElapsed);
           std::cout << "[" << this->getJobID() << "] " << this->cmd_line << " : " << this->jobPid
                     << " " << time << " secs";
-          if(this->isStopped) std::cout << "(stopped)" << std::endl;
+          if(this->isStopped) std::cout << " (stopped)" << std::endl;
           else std::cout << std::endl;
       }
       void setIsStopped(bool isStopped){
