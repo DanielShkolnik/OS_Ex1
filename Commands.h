@@ -570,6 +570,7 @@ public:
                 smash.setForegroundCmdLine(this->cmd_line);
                 smash.setForegroundJobID(-1);
                 waitpid(pid,NULL,0 | WUNTRACED);
+                smash.setForegroundPid(-1);
             }
             else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
         }
@@ -655,6 +656,7 @@ public:
                 smash.setForegroundCmdLine(this->cmd_line);
                 smash.setForegroundJobID(-1);
                 waitpid(pid, NULL, 0 | WUNTRACED);
+                smash.setForegroundPid(-1);
             } else smash.getJobsList()->addJob(this->pid, this->cmd_line, false);
         }
 
@@ -723,6 +725,7 @@ public:
             int lastJobPid=lastJob->getJobPid();
             this->jobsList->removeJobById(lastJob->getJobID());
             waitpid(lastJobPid,NULL,0 | WUNTRACED);
+            smash.setForegroundPid(-1);
         }
         if(argNum==2) {
             int jobID;
@@ -775,6 +778,7 @@ public:
                         free(cmd);
                         return;
                     }
+                    smash.setForegroundPid(-1);
                 }
             }
         }
@@ -1013,6 +1017,7 @@ public:
                 smash.setForegroundCmdLine(this->cmd_line);
                 smash.setForegroundJobID(-1);
                 waitpid(pid,NULL,WUNTRACED);
+                smash.setForegroundPid(-1);
             }
             else{
                 smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
@@ -1090,6 +1095,7 @@ public:
                 smash.setForegroundPid(pid);
                 smash.setForegroundCmdLine(this->cmd_line);
                 waitpid(pid,NULL,0 | WUNTRACED);
+                smash.setForegroundPid(-1);
             }
             else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
         }
@@ -1286,6 +1292,7 @@ public:
                     smash.setForegroundCmdLine(this->cmd_line);
                     smash.setForegroundJobID(-1);
                     waitpid(pid,NULL,0 | WUNTRACED);
+                    smash.setForegroundPid(-1);
                 }
                 else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
         }
