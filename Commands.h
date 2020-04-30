@@ -1025,7 +1025,6 @@ public:
             }
             else{
                 smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
-                sleep(1);
             }
         }
 

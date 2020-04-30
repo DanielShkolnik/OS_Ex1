@@ -41,13 +41,13 @@ void alarmHandler(int sig_num) {
   // TODO: Add your implementation
     std::cout << "smash: got an alarm" << std::endl;
     SmallShell& smash=SmallShell::getInstance();
+    smash.getJobsList()->removeFinishedJobs();
     char cmd[COMMAND_ARGS_MAX_LENGTH];
     smash.getTimeOutList()->removeFinishedTimeOutAlarm();
     int pid=smash.getTimeOutList()->getAlarmedTimeOutParamsAndDelete(cmd);
     if(pid!=-1 && waitpid(pid,NULL,WNOHANG)!=-1){
         if(kill(-pid,SIGKILL)==-1) perror("smash error: kill failed");
         smash.getTimeOutList()->sortTimeOutList();
-
         std::cout << "smash: " << cmd << " timed out!" << std::endl;
     }
     if(!smash.getTimeOutList()->isEmptyTimeOutList()){
