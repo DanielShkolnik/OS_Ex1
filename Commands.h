@@ -425,7 +425,7 @@ private:
       int sigNum,jobNum;
       try{
           sigNum=abs(stoi(args[1]));
-          jobNum=abs(stoi(args[2]));
+          jobNum=stoi(args[2]);
       }
       catch(const std::invalid_argument&){
           std::cerr << "smash error: kill: invalid arguments" << std::endl;
