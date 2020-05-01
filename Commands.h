@@ -638,6 +638,7 @@ public:
                 for (int i = 0; i < argNum; i++) free(args[i]);
                 free(cmd);
                 smash.setIsQuit(true);
+                close(files[0]);
                 return;
             }
 
