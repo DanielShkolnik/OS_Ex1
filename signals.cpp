@@ -26,6 +26,7 @@ void ctrlCHandler(int sig_num) {
   // TODO: Add your implementation
     std::cout << "smash: got ctrl-C" << std::endl;
     SmallShell& smash=SmallShell::getInstance();
+
     if(smash.getForegroundPid()!=-1){
         if(smash.getIsPipeCommand()){
             if( kill(-(smash.getForegroundPid()),SIGKILL)==-1) perror("smash error: kill failed");

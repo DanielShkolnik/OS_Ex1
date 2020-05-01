@@ -11,6 +11,7 @@
 #include <cmath>
 #include <fcntl.h>
 
+#define MAX_PATH (260)
 
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
@@ -606,6 +607,8 @@ public:
             free(cmd);
             return;
         }
+
+
         SmallShell &smash = SmallShell::getInstance();
         pid_t pid = fork();
         if (pid == -1) perror("smash error: fork failed");
@@ -624,6 +627,21 @@ public:
                 smash.setIsQuit(true);
                 return;
             }
+
+            char realFile1[MAX_PATH];
+            char realFile2[MAX_PATH];
+            realpath(args[1], realFile1);
+            realpath(args[2], realFile2);
+
+            if(strcmp(realFile1,realFile2)==0){
+                std::cout << "smash: "<<  args[1] << " was copied to " << args[2] << std::endl;
+                for (int i = 0; i < argNum; i++) free(args[i]);
+                free(cmd);
+                smash.setIsQuit(true);
+                return;
+            }
+
+
 
             files[1] = open(args[2], O_CREAT | O_RDWR | O_TRUNC, 0666);
             if (files[1] == -1) /* Check if file opened (permissions problems ...) */
@@ -727,7 +745,12 @@ public:
             }
             int lastJobPid=lastJob->getJobPid();
             this->jobsList->removeJobById(lastJob->getJobID());
-            waitpid(lastJobPid,NULL,0 | WUNTRACED);
+            if(waitpid(lastJobPid,NULL,0 | WUNTRACED)==-1){
+                perror("smash error: waitpid failed");
+                for(int i=0; i<argNum; i++) free(args[i]);
+                free(cmd);
+                return;
+            }
             smash.setForegroundPid(-1);
         }
         if(argNum==2) {
