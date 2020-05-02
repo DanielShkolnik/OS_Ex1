@@ -202,15 +202,6 @@ class HistoryCommand : public BuiltInCommand {
 };
 
 
-
-
-
-
-
-
-
-
-
 class JobsList {
  public:
   class JobEntry {
@@ -423,18 +414,11 @@ private:
           return;
       }
       int sigNum,jobNum;
+
       try{
-          sigNum=abs(stoi(args[1]));
           jobNum=stoi(args[2]);
       }
       catch(const std::invalid_argument&){
-          std::cerr << "smash error: kill: invalid arguments" << std::endl;
-          for(int i=0; i<argNum; i++) free(args[i]);
-          free(cmd);
-          return;
-      }
-      string sigNumStr=args[1];
-      if(sigNum<1 || sigNum>31 || sigNumStr.find("-")!=0){
           std::cerr << "smash error: kill: invalid arguments" << std::endl;
           for(int i=0; i<argNum; i++) free(args[i]);
           free(cmd);
@@ -448,6 +432,26 @@ private:
           free(cmd);
           return;
       }
+
+      try{
+          sigNum=abs(stoi(args[1]));
+      }
+      catch(const std::invalid_argument&){
+          std::cerr << "smash error: kill: invalid arguments" << std::endl;
+          for(int i=0; i<argNum; i++) free(args[i]);
+          free(cmd);
+          return;
+      }
+
+      string sigNumStr=args[1];
+      if(sigNum<1 || sigNum>31 || sigNumStr.find("-")!=0){
+          std::cerr << "smash error: kill: invalid arguments" << std::endl;
+          for(int i=0; i<argNum; i++) free(args[i]);
+          free(cmd);
+          return;
+      }
+
+
       int jobPid=jobByID->getJobPid();
       if(jobByID->getIsPipeCommand()) {
           if (kill(-jobPid, sigNum) == -1) perror("smash error: kill failed");
