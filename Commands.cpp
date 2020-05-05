@@ -33,6 +33,76 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define EXEC(path, arg) \
   execvp((path), (arg));
 
+
+
+bool isBuiltinCommand(const char* cmd_line){
+
+    char cmdNoBackground[COMMAND_ARGS_MAX_LENGTH];
+    strcpy(cmdNoBackground,cmd_line);
+    if(_isBackgroundComamnd(cmd_line)) _removeBackgroundSign(cmdNoBackground);
+
+    char *args[COMMAND_ARGS_MAX_LENGTH];
+    int argNum = _parseCommandLine(cmdNoBackground, args);
+
+    if(argNum==0){
+        args[0]=(char*)malloc(strlen(cmd_line)+1);
+        strcpy(args[0],cmd_line);
+        argNum=1;
+    }
+
+    if(strcmp(args[0],"chprompt")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if (strcmp(args[0],"pwd")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if(strcmp(args[0],"showpid")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if(strcmp(args[0],"cd")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if(strcmp(args[0],"jobs")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if(strcmp(args[0],"kill")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if(strcmp(args[0],"fg")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if(strcmp(args[0],"bg")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+
+    else if(strcmp(args[0],"quit")==0) {
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return true;
+    }
+    else{
+        for (int i = 0; i < argNum; i++) free(args[i]);
+        return false;
+    }
+}
+
+
+
+
 string _ltrim(const std::string& s)
 {
   size_t start = s.find_first_not_of(WHITESPACE);
@@ -163,6 +233,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
     return new PipeCommand(cmd_line,isPipe);
   }
 
+  else if(strcmp(args[0],"kill")==0) {
+      for (int i = 0; i < argNum; i++) free(args[i]);
+      return new KillCommand(cmd_line,this->jobsList);
+  }
+
   else if(strcmp(args[0],"chprompt")==0) {
       for (int i = 0; i < argNum; i++) free(args[i]);
       return new ChangePromptCommand(cmd_line);
@@ -188,11 +263,6 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
       return new JobsCommand(cmd_line,this->jobsList);
   }
 
-   else if(strcmp(args[0],"kill")==0) {
-      for (int i = 0; i < argNum; i++) free(args[i]);
-      return new KillCommand(cmd_line,this->jobsList);
-   }
-
    else if(strcmp(args[0],"fg")==0) {
       for (int i = 0; i < argNum; i++) free(args[i]);
       return new ForegroundCommand(cmd_line,this->jobsList);
@@ -216,6 +286,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line,bool isPipe) {
 
   return nullptr;
 }
+
 
 void SmallShell::executeCommand(const char *cmd_line) {
   // TODO: Add your implementation here

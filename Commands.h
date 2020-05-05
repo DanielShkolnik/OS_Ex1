@@ -26,6 +26,7 @@ extern bool firstCD;
 int _parseCommandLine(const char* cmd_line, char** args);
 bool _isBackgroundComamnd(const char* cmd_line);
 void _removeBackgroundSign(char* cmd_line);
+bool isBuiltinCommand(const char* cmd_line);
 
 class Command {
 // TODO: Add your data members
@@ -125,23 +126,43 @@ public:
           if(firstCD) std::cerr << "smash error: cd: OLDPWD not set" << endl;
           else {
               char* temp=get_current_dir_name();
+              if(temp== nullptr){
+                  perror("smash error: get_current_dir_name failed");
+                  for(int i=0; i<argNum; i++) free(args[i]);
+                  free(cmd);
+                  return;
+              }
               int chdirError=chdir( *plastPwd);
               if(!firstCD) free( *plastPwd);
               *plastPwd=(char*)malloc(strlen(temp)+1);
               strcpy(*plastPwd,temp);
               free(temp);
-              if(chdirError==-1) perror("smash error: chdir failed");
+              if(chdirError==-1){
+                  perror("smash error: chdir failed");
+                  for(int i=0; i<argNum; i++) free(args[i]);
+                  free(cmd);
+                  return;
+              }
           }
           for(int i=0; i<argNum; i++) free(args[i]);
           free(cmd);
           return;
       }
       char* oldPath=get_current_dir_name();
-      if (oldPath== nullptr) perror("smash error: get_current_dir_name failed");
+      if(oldPath== nullptr){
+          perror("smash error: get_current_dir_name failed");
+          for(int i=0; i<argNum; i++) free(args[i]);
+          free(cmd);
+          return;
+      }
 
       int chdirError=chdir(args[1]);
       if(chdirError==-1){
           perror("smash error: chdir failed");
+          for(int i=0; i<argNum; i++) free(args[i]);
+          free(oldPath);
+          free(cmd);
+          return;
       }
       else{
           if(!firstCD) free(*plastPwd);
@@ -425,16 +446,22 @@ private:
           return;
       }
 
-      JobsList::JobEntry* jobByID=this->jobsList->getJobById(jobNum);
-      if(jobByID == nullptr){
-          std::cerr << "smash error: kill: job-id " << jobNum <<" does not exist" << std::endl;
-          for(int i=0; i<argNum; i++) free(args[i]);
-          free(cmd);
-          return;
-      }
+
+
+
+
+
+
 
       try{
-          sigNum=abs(stoi(args[1]));
+          sigNum=stoi(args[1]);
+          if(sigNum>0){
+              std::cerr << "smash error: kill: invalid arguments" << std::endl;
+              for(int i=0; i<argNum; i++) free(args[i]);
+              free(cmd);
+              return;
+          }
+          else sigNum=abs(sigNum);
       }
       catch(const std::invalid_argument&){
           std::cerr << "smash error: kill: invalid arguments" << std::endl;
@@ -443,6 +470,19 @@ private:
           return;
       }
 
+
+
+      JobsList::JobEntry* jobByID=this->jobsList->getJobById(jobNum);
+      if(jobByID == nullptr){
+          std::cerr << "smash error: kill: job-id " << jobNum <<" does not exist" << std::endl;
+          for(int i=0; i<argNum; i++) free(args[i]);
+          free(cmd);
+          return;
+      }
+
+
+
+      /*
       string sigNumStr=args[1];
       if(sigNum<1 || sigNum>31 || sigNumStr.find("-")!=0){
           std::cerr << "smash error: kill: invalid arguments" << std::endl;
@@ -450,18 +490,17 @@ private:
           free(cmd);
           return;
       }
-
+      */
 
       int jobPid=jobByID->getJobPid();
-      if(jobByID->getIsPipeCommand()) {
-          if (kill(-jobPid, sigNum) == -1) perror("smash error: kill failed");
+      if (kill(-jobPid, sigNum) == -1) {
+          perror("smash error: kill failed");
+          for(int i=0; i<argNum; i++) free(args[i]);
+          free(cmd);
+          return;
       }
-      else {
-          if (kill(jobPid, sigNum) == -1) perror("smash error: kill failed");
-      }
-
-      if(sigNum==SIGSTOP) jobByID->setIsStopped(true);
-      if(sigNum==SIGCONT) jobByID->setIsStopped(false);
+      //if(sigNum==SIGSTOP) jobByID->setIsStopped(true);
+      //if(sigNum==SIGCONT) jobByID->setIsStopped(false);
       std::cout << "signal number " << sigNum <<" was sent to pid " << jobPid << std::endl;
 
       for(int i=0; i<argNum; i++) free(args[i]);
@@ -1095,48 +1134,77 @@ public:
             _removeBackgroundSign(filePathCStr);
             isBackground=true;
         }
-        pid_t pid=fork();
-        if(pid==-1) perror("smash error: fork failed");
-        //Child:
-        if(pid==0){
-            SmallShell& smash=SmallShell::getInstance();
-            if(!(this->isPipe)) setpgrp();
-            if(close(1)==-1) perror("smash error: close failed");
-            int file;
-            if(isAppend) file=open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,0666);
-            else file=open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,0666);
-            if(file==-1){
-                perror("smash error: open failed");
-                for(int i=0; i<argNumPath; i++) free(argsPath[i]);
-                for(int i=0; i<argsNumCommand; i++) free(argsCommand[i]);
-                smash.setIsQuit(true);
-                return;
-            }
-            Command* cmd;
-            if(this->isPipe) cmd=smash.CreateCommand(commandCmdCStr,true);
-            else cmd=smash.CreateCommand(commandCmdCStr);
-            if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is " << getppid() << endl;
-            else cmd->execute();
-            delete cmd;
-            smash.setIsQuit(true);
-            close(file);
+
+        SmallShell& smash=SmallShell::getInstance();
+
+        int std_out=dup(1);
+
+        if(close(1)==-1){
+            perror("smash error: close failed");
             for(int i=0; i<argNumPath; i++) free(argsPath[i]);
             for(int i=0; i<argsNumCommand; i++) free(argsCommand[i]);
+            dup2(std_out,1);
+            close(std_out);
             return;
-            //exit(0);
         }
-        //Parent:
+
+        int file;
+        if(isAppend) file=open(argsPath[0],O_CREAT | O_RDWR | O_APPEND ,0666);
+        else file=open(argsPath[0],O_CREAT | O_RDWR | O_TRUNC ,0666);
+        if(file==-1){
+            perror("smash error: open failed");
+            for(int i=0; i<argNumPath; i++) free(argsPath[i]);
+            for(int i=0; i<argsNumCommand; i++) free(argsCommand[i]);
+            dup2(std_out,1);
+            close(std_out);
+            return;
+        }
+
+        Command* cmd;
+        if(this->isPipe) cmd=smash.CreateCommand(commandCmdCStr,true);
+        else cmd=smash.CreateCommand(commandCmdCStr);
+
+        if(isBuiltinCommand(commandCmdCStr)){
+            cmd->execute();
+            this->pid=cmd->getPID();
+            delete cmd;
+            close(file);
+        }
         else{
-            this->pid=pid;
-            SmallShell& smash=SmallShell::getInstance();
-            if(!isBackground){
-                smash.setForegroundPid(pid);
-                smash.setForegroundCmdLine(this->cmd_line);
-                waitpid(pid,NULL,0 | WUNTRACED);
-                smash.setForegroundPid(-1);
+            pid_t pid=fork();
+            if(pid==-1) perror("smash error: fork failed");
+            //Child:
+            if(pid==0){
+                if(!(this->isPipe)) setpgrp();
+                if(strcmp(argsCommand[0],"showpid")==0) std::cout << "smash pid is " << getppid() << endl;
+                else cmd->execute();
+                delete cmd;
+                smash.setIsQuit(true);
+                close(file);
+                for(int i=0; i<argNumPath; i++) free(argsPath[i]);
+                for(int i=0; i<argsNumCommand; i++) free(argsCommand[i]);
+                dup2(std_out,1);
+                close(std_out);
+                return;
+                //exit(0);
             }
-            else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
+            //Parent:
+            else{
+                close(file);
+                this->pid=pid;
+            }
         }
+        if(!isBackground){
+            smash.setForegroundPid(pid);
+            smash.setForegroundCmdLine(this->cmd_line);
+            waitpid(pid,NULL,0 | WUNTRACED);
+            smash.setForegroundPid(-1);
+        }
+        else smash.getJobsList()->addJob(this->pid,this->cmd_line,false);
+
+        dup2(std_out,1);
+        close(std_out);
+
 
         for(int i=0; i<argNumPath; i++) free(argsPath[i]);
         for(int i=0; i<argsNumCommand; i++) free(argsCommand[i]);
@@ -1305,36 +1373,46 @@ public:
         char commandCmdCStr[commandCmd.size()];
         strcpy(commandCmdCStr,commandCmd.c_str());
 
-        pid_t pid=fork();
-        if(pid==-1) perror("smash error: fork failed");
-        //Child:
-        if(pid==0){
-            setpgrp();
-            SmallShell& smash=SmallShell::getInstance();
-            Command* cmd=smash.CreateCommand(commandCmdCStr,true);
-            if(strcmp(args[2],"showpid")==0) std::cout << "smash pid is " << getppid() << endl;
-            else cmd->execute();
+        SmallShell& smash=SmallShell::getInstance();
+        Command* cmd=smash.CreateCommand(commandCmdCStr,true);
+
+        if(isBuiltinCommand(commandCmdCStr)){
+            cmd->execute();
+            this->pid=cmd->getPID();
             delete cmd;
-            smash.setIsQuit(true);
-            for (int i = 0; i < argNum; i++) free(args[i]);
-            return;
         }
-            //Parent:
         else{
-            this->pid=pid;
-            int duration=stoi(args[1]);
-            SmallShell& smash=SmallShell::getInstance();
-            smash.getTimeOutList()->addTimeOut(this->pid,time(nullptr),duration,this->cmd_line);
-                if(!_isBackgroundComamnd(cmd_line)){
-                    smash.setIsPipeCommand(true);
-                    smash.setForegroundPid(pid);
-                    smash.setForegroundCmdLine(this->cmd_line);
-                    smash.setForegroundJobID(-1);
-                    waitpid(pid,NULL,0 | WUNTRACED);
-                    smash.setForegroundPid(-1);
-                }
-                else smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
+            pid_t pid=fork();
+            if(pid==-1) perror("smash error: fork failed");
+            //Child:
+            if(pid==0){
+                setpgrp();
+                if(strcmp(args[2],"showpid")==0) std::cout << "smash pid is " << getppid() << endl;
+                else cmd->execute();
+                delete cmd;
+                smash.setIsQuit(true);
+                for (int i = 0; i < argNum; i++) free(args[i]);
+                return;
+            }
+                //Parent:
+            else{
+                this->pid=pid;
+
+            }
         }
+
+        int duration=stoi(args[1]);
+        smash.getTimeOutList()->addTimeOut(this->pid,time(nullptr),duration,this->cmd_line);
+        if(!_isBackgroundComamnd(cmd_line)){
+            smash.setIsPipeCommand(true);
+            smash.setForegroundPid(pid);
+            smash.setForegroundCmdLine(this->cmd_line);
+            smash.setForegroundJobID(-1);
+            waitpid(pid,NULL,0 | WUNTRACED);
+            smash.setForegroundPid(-1);
+        }
+        else smash.getJobsList()->addJob(this->pid,this->cmd_line,false,true);
+
         for (int i = 0; i < argNum; i++) free(args[i]);
     };
 };
